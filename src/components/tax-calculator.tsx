@@ -119,15 +119,15 @@ export default function TaxCalculator() {
     setIsGenerating(true);
     setAiTips("");
 
-    const { salary, bonus, pensionContribution, isBonusPensionable, pensionableBonusPercentage } = parsed.data;
+    const { salary, bonus, pensionContribution, taxableBenefits, region, hasPayRise, newSalary, payRiseMonth, isBonusPensionable, pensionableBonusPercentage } = parsed.data;
     
     // This calculation must match the main tax logic
-    const payRiseMonthIndex = parsed.data.hasPayRise ? months.indexOf(parsed.data.payRiseMonth) : 12;
-    let annualSalary = parsed.data.salary;
-    if (parsed.data.hasPayRise && parsed.data.newSalary) {
+    const payRiseMonthIndex = hasPayRise ? months.indexOf(payRiseMonth) : 12;
+    let annualSalary = salary;
+    if (hasPayRise && newSalary) {
       const monthsAtOldSalary = payRiseMonthIndex;
       const monthsAtNewSalary = 12 - payRiseMonthIndex;
-      annualSalary = (parsed.data.salary / 12 * monthsAtOldSalary) + (parsed.data.newSalary / 12 * monthsAtNewSalary);
+      annualSalary = (salary / 12 * monthsAtOldSalary) + (newSalary / 12 * monthsAtNewSalary);
     }
     const pensionableBonus = isBonusPensionable && bonus ? bonus * (pensionableBonusPercentage / 100) : 0;
     const totalPensionableIncome = annualSalary + pensionableBonus;
@@ -137,8 +137,8 @@ export default function TaxCalculator() {
       salary: salary,
       bonus: bonus,
       pensionContributions: pensionAmount,
-      otherTaxableBenefits: parsed.data.taxableBenefits,
-      region: parsed.data.region,
+      otherTaxableBenefits: taxableBenefits,
+      region: region,
     });
 
     if (actionResult.success && actionResult.data) {
@@ -684,7 +684,7 @@ export default function TaxCalculator() {
                               <p>{childcareAdvice.costSummary}</p>
                             </div>
                              <div>
-                              <h4 className="font-semibold mb-2">Income & Tax Allowance Analysis</h4>
+                              <h4 className="font-semibold mb-2">Income &amp; Tax Allowance Analysis</h4>
                               <p>{childcareAdvice.incomeAnalysis}</p>
                             </div>
                             <div>
