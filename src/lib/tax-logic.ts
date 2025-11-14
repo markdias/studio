@@ -178,7 +178,7 @@ function calculateNICForPeriod(grossIncomeForPeriod: number, year: TaxYear): num
 }
 
 export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationResults {
-    const { taxYear, salary, bonus = 0, pensionContribution, region, taxableBenefits = 0, taxCode } = input;
+    const { taxYear, salary, bonus = 0, pensionContribution, region, taxableBenefits = 0, taxCode, bonusPensionContribution = 0 } = input;
     const payRiseMonthIndex = input.hasPayRise ? months.indexOf(input.payRiseMonth) : 12;
     const bonusMonthIndex = bonus > 0 ? months.indexOf(input.bonusMonth) : -1;
 
@@ -195,10 +195,10 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
     }
     
     const annualGrossIncome = annualGrossFromSalary + bonus;
-
-    const bonusPensionableAmount = (input.isBonusPensionable && bonus > 0) ? bonus * (input.pensionableBonusPercentage / 100) : 0;
-    const annualPensionableSalary = annualGrossFromSalary + bonusPensionableAmount;
-    const annualPension = annualPensionableSalary * (pensionContribution / 100);
+    
+    const annualPensionFromSalary = annualGrossFromSalary * (pensionContribution / 100);
+    const annualPensionFromBonus = bonus * (bonusPensionContribution / 100);
+    const annualPension = annualPensionFromSalary + annualPensionFromBonus;
 
     const annualAdjustedNet = annualGrossIncome + taxableBenefits - annualPension;
     const finalPersonalAllowance = calculateAnnualPersonalAllowance(annualAdjustedNet, parsedCodeAllowance, taxYear);
@@ -215,9 +215,10 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
         const bonusThisMonth = (i === bonusMonthIndex) ? bonus : 0;
         const grossThisMonth = grossThisMonthFromSalary + bonusThisMonth;
 
-        const pensionableBonusThisMonth = (i === bonusMonthIndex && input.isBonusPensionable) ? bonus * (input.pensionableBonusPercentage / 100) : 0;
-        const pensionablePayThisMonth = grossThisMonthFromSalary + pensionableBonusThisMonth;
-        const pensionThisMonth = pensionablePayThisMonth * (pensionContribution / 100);
+        const pensionFromSalaryThisMonth = grossThisMonthFromSalary * (pensionContribution / 100);
+        const bonusPensionThisMonth = (i === bonusMonthIndex) ? annualPensionFromBonus : 0;
+        const pensionThisMonth = pensionFromSalaryThisMonth + bonusPensionThisMonth;
+
 
         const nicThisMonth = calculateNICForPeriod(grossThisMonth, taxYear);
         annualNic += nicThisMonth;

@@ -30,7 +30,7 @@ const prompt = ai.definePrompt({
 
   Salary: £{{salary}}
   Bonus: £{{bonus}}
-  Pension Contributions: £{{pensionContributions}}
+  Annual Pension Contributions: £{{pensionContributions}}
   Other Taxable Benefits: £{{otherTaxableBenefits}}
   Region: {{region}}
 

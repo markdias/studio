@@ -57,12 +57,11 @@ const initialValues: TaxCalculatorSchema = {
   salary: 50000,
   bonus: 0,
   pensionContribution: 5,
+  bonusPensionContribution: 0,
   region: "England",
   bonusMonth: "April",
   taxCode: "1257L",
   taxableBenefits: 0,
-  isBonusPensionable: false,
-  pensionableBonusPercentage: 100,
   hasPayRise: false,
   newSalary: 60000,
   payRiseMonth: "April",
@@ -311,11 +310,11 @@ export default function TaxCalculator() {
     setIsTaxChatLoading(true);
     setTaxChatHistory([]);
 
-    const { salary, bonus, pensionContribution, taxableBenefits, region, isBonusPensionable, pensionableBonusPercentage } = parsed.data;
+    const { salary, bonus, pensionContribution, taxableBenefits, region, bonusPensionContribution } = parsed.data;
 
-    const pensionableBonus = isBonusPensionable && bonus ? bonus * (pensionableBonusPercentage / 100) : 0;
-    const totalPensionableIncome = salary + pensionableBonus;
-    const pensionAmount = totalPensionableIncome * (pensionContribution / 100);
+    const pensionFromSalary = salary * (pensionContribution / 100);
+    const pensionFromBonus = (bonus ?? 0) * ((bonusPensionContribution ?? 0) / 100);
+    const pensionAmount = pensionFromSalary + pensionFromBonus;
 
     const actionResult = await generateTaxSavingTipsAction({
       salary: salary,
@@ -814,7 +813,7 @@ ${actionResult.data.summary}
                                 name="pensionContribution"
                                 render={({ field }) => (
                                     <FormItem>
-                                    <FormLabel>Contribution ({field.value}%)</FormLabel>
+                                    <FormLabel>Salary Contribution ({field.value}%)</FormLabel>
                                     <FormControl>
                                         <Slider
                                         min={0}
@@ -830,41 +829,24 @@ ${actionResult.data.summary}
                             />
                             <FormField
                                 control={form.control}
-                                name="isBonusPensionable"
+                                name="bonusPensionContribution"
                                 render={({ field }) => (
-                                <FormItem className="flex flex-row items-center justify-between">
-                                    <FormLabel>Bonus is Pensionable</FormLabel>
-                                    <FormControl>
-                                    <Switch
-                                        checked={field.value}
-                                        onCheckedChange={field.onChange}
+                                <FormItem>
+                                    <FormLabel>Bonus Contribution ({field.value}%)</FormLabel>
+                                     <FormControl>
+                                        <Slider
+                                        min={0}
+                                        max={100}
+                                        step={1}
+                                        value={[field.value ?? 0]}
+                                        onValueChange={(value) => field.onChange(value[0])}
                                         disabled={(watchedValues.bonus ?? 0) <= 0}
-                                    />
+                                        />
                                     </FormControl>
+                                    <FormMessage />
                                 </FormItem>
                                 )}
                             />
-                            {watchedValues.isBonusPensionable && (watchedValues.bonus ?? 0) > 0 && (
-                                <FormField
-                                    control={form.control}
-                                    name="pensionableBonusPercentage"
-                                    render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Pensionable Portion ({field.value}%)</FormLabel>
-                                        <FormControl>
-                                        <Slider
-                                            min={0}
-                                            max={100}
-                                            step={1}
-                                            value={[field.value ?? 100]}
-                                            onValueChange={(value) => field.onChange(value[0])}
-                                        />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                    )}
-                                />
-                            )}
                             <Separator />
                             <h4 className="font-semibold text-sm">Comparison</h4>
                              <FormField
@@ -1173,7 +1155,7 @@ ${actionResult.data.summary}
                         <CardDescription>Analyze costs and ask questions about managing the £100k income threshold.</CardDescription>
                     </CardHeader>
                     <CardContent className="text-sm">
-                      <div ref={childcareChatContainerRef} className="p-4 border rounded-md mb-4 bg-muted/20 space-y-4">
+                      <div ref={childcareChatContainerRef} className="h-auto p-4 border rounded-md mb-4 bg-muted/20 space-y-4">
                             {isChildcareChatLoading && childcareChatHistory.length === 0 ? (
                                 <div className="flex items-center justify-center h-full">
                                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
