@@ -21,7 +21,7 @@ const taxYearData = {
     NIC_BANDS: {
       primaryThreshold: 12570,
       upperEarningsLimit: 50270,
-      rate1: 0.115, 
+      rate1: 0.12, // Jan-Mar 2024 was 10%, but most of year was 12%
       rate2: 0.02,
     },
   },
@@ -109,85 +109,69 @@ function calculateIncomeTax(taxableIncome: number, region: Region, year: TaxYear
   let tax = 0;
   const { ENGLAND_WALES_NI_BANDS, SCOTLAND_BANDS } = getTaxYearData(year);
 
-  if (region === 'Scotland') {
-    let income = taxableIncome;
-    const { starter, basic, intermediate, higher, advanced, top } = SCOTLAND_BANDS;
+  const bands = region === 'Scotland' ? SCOTLAND_BANDS : ENGLAND_WALES_NI_BANDS;
 
-    if (advanced && top) { 
-        tax += Math.min(income, starter.threshold) * starter.rate;
-        income -= starter.threshold;
-        if (income > 0) {
-            tax += Math.min(income, basic.threshold - starter.threshold) * basic.rate;
-            income -= (basic.threshold - starter.threshold);
-        }
-        if (income > 0) {
-            tax += Math.min(income, intermediate.threshold - basic.threshold) * intermediate.rate;
-            income -= (intermediate.threshold - basic.threshold);
-        }
-        if (income > 0) {
-            tax += Math.min(income, higher.threshold - intermediate.threshold) * higher.rate;
-            income -= (higher.threshold - intermediate.threshold);
-        }
-        if (income > 0) {
-            tax += Math.min(income, advanced.threshold - higher.threshold) * advanced.rate;
-            income -= (advanced.threshold - higher.threshold);
-        }
-        if (income > 0) {
-            tax += income * top.rate;
-        }
-    } else { 
-        tax += Math.min(income, starter.threshold) * starter.rate;
-        income -= starter.threshold;
-        if (income > 0) {
-            tax += Math.min(income, basic.threshold - starter.threshold) * basic.rate;
-            income -= (basic.threshold - starter.threshold);
-        }
-        if (income > 0) {
-            tax += Math.min(income, intermediate.threshold - basic.threshold) * intermediate.rate;
-            income -= (intermediate.threshold - basic.threshold);
-        }
-        if (income > 0) {
-            tax += Math.min(income, higher.threshold - intermediate.threshold) * higher.rate;
-            income -= (higher.threshold - intermediate.threshold);
-        }
-        if (income > 0 && top) {
-            tax += income * top.rate;
-        }
+  let remainingIncome = taxableIncome;
+  
+  if (region === 'Scotland') {
+    const { starter, basic, intermediate, higher, advanced, top } = SCOTLAND_BANDS;
+    const scottishBands = [
+        { limit: starter.threshold, rate: starter.rate },
+        { limit: basic.threshold, rate: basic.rate },
+        { limit: intermediate.threshold, rate: intermediate.rate },
+        { limit: higher.threshold, rate: higher.rate },
+        { limit: advanced ? advanced.threshold : higher.threshold, rate: advanced ? advanced.rate : top.rate },
+        { limit: Infinity, rate: top.rate }
+    ];
+
+    let lastLimit = 0;
+    for (const band of scottishBands) {
+      if (remainingIncome <= 0) break;
+      const taxableInBand = Math.min(remainingIncome, band.limit - lastLimit);
+      tax += taxableInBand * band.rate;
+      remainingIncome -= taxableInBand;
+      lastLimit = band.limit;
     }
-  } else { // England, Wales, NI
-    let income = taxableIncome;
-    tax += Math.min(income, ENGLAND_WALES_NI_BANDS.basic.threshold) * ENGLAND_WALES_NI_BANDS.basic.rate;
-    income -= ENGLAND_WALES_NI_BANDS.basic.threshold;
-    if (income > 0) {
-      tax += Math.min(income, ENGLAND_WALES_NI_BANDS.higher.threshold - ENGLAND_WALES_NI_BANDS.basic.threshold) * ENGLAND_WALES_NI_BANDS.higher.rate;
-      income -= (ENGLAND_WALES_NI_BANDS.higher.threshold - ENGLAND_WALES_NI_BANDS.basic.threshold);
-    }
-    if (income > 0) {
-      tax += income * ENGLAND_WALES_NI_BANDS.additional.rate;
+
+  } else {
+    // England, Wales, NI
+    const { basic, higher, additional } = ENGLAND_WALES_NI_BANDS;
+    const ewniBands = [
+        { limit: basic.threshold, rate: basic.rate },
+        { limit: higher.threshold, rate: higher.rate },
+        { limit: Infinity, rate: additional.rate }
+    ];
+    
+    let lastLimit = 0;
+    for (const band of ewniBands) {
+      if (remainingIncome <= 0) break;
+      const taxableInBand = Math.min(remainingIncome, band.limit - lastLimit);
+      tax += taxableInBand * band.rate;
+      remainingIncome -= taxableInBand;
+      lastLimit = band.limit;
     }
   }
+
   return tax;
 }
 
-function calculateNIC(grossIncome: number, year: TaxYear): number {
-  const { NIC_BANDS } = getTaxYearData(year);
-  if (grossIncome <= 0) return 0;
+function calculateNICForIncome(income: number, year: TaxYear): number {
+    const { NIC_BANDS } = getTaxYearData(year);
+    if (income <= NIC_BANDS.primaryThreshold) {
+        return 0;
+    }
 
-  const annualisedGross = grossIncome * 12;
-  if (annualisedGross <= NIC_BANDS.primaryThreshold) return 0;
-  
-  let nic = 0;
-  const incomeOverPT = grossIncome - (NIC_BANDS.primaryThreshold / 12);
-  const incomeUpToUEL = Math.min(incomeOverPT, (NIC_BANDS.upperEarningsLimit / 12) - (NIC_BANDS.primaryThreshold / 12));
+    let nic = 0;
+    const incomeOverPT = income - NIC_BANDS.primaryThreshold;
+    const incomeUpToUEL = Math.min(incomeOverPT, NIC_BANDS.upperEarningsLimit - NIC_BANDS.primaryThreshold);
+    
+    nic += incomeUpToUEL * NIC_BANDS.rate1;
 
-  nic += Math.max(0, incomeUpToUEL * NIC_BANDS.rate1);
-
-  if (grossIncome > (NIC_BANDS.upperEarningsLimit / 12)) {
-    const incomeOverUEL = grossIncome - (NIC_BANDS.upperEarningsLimit / 12);
-    nic += incomeOverUEL * NIC_BANDS.rate2;
-  }
-  
-  return nic;
+    if (income > NIC_BANDS.upperEarningsLimit) {
+        const incomeOverUEL = income - NIC_BANDS.upperEarningsLimit;
+        nic += incomeOverUEL * NIC_BANDS.rate2;
+    }
+    return nic;
 }
 
 
@@ -212,14 +196,14 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
     const adjustedNetIncome = grossAnnualIncome + (input.taxableBenefits ?? 0) - annualPensionContribution;
     const personalAllowance = calculatePersonalAllowance(adjustedNetIncome, input.taxCode, input.taxYear);
     
-    const annualTaxableIncome = Math.max(0, adjustedNetIncome - personalAllowance);
+    const annualTaxableIncome = Math.max(0, grossAnnualIncome + (input.taxableBenefits ?? 0) - annualPensionContribution - personalAllowance);
     const annualTax = calculateIncomeTax(annualTaxableIncome, input.region, input.taxYear);
 
+    const annualNic = calculateNICForIncome(grossAnnualIncome, input.taxYear);
+    
+    const annualTakeHome = grossAnnualIncome - annualTax - annualNic - annualPensionContribution;
+    
     const monthlyBreakdown: MonthlyResult[] = [];
-    let cumulativeGross = 0;
-    let cumulativeTax = 0;
-    let cumulativeNic = 0;
-    let cumulativePension = 0;
 
     months.forEach((month, index) => {
         const currentAnnualSalary = (input.hasPayRise && input.newSalary && index >= payRiseMonthIndex) 
@@ -233,27 +217,40 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
             const salaryDifference = (input.newSalary - input.salary) / 12;
             backPay = salaryDifference * payRiseMonthIndex;
         }
-
+        
         const currentMonthBonus = index === bonusMonthIndex ? (input.bonus ?? 0) : 0;
         const currentMonthGross = monthlySalary + backPay + currentMonthBonus;
-
+        
         const pensionableSalary = monthlySalary + backPay;
         const currentPensionableBonus = index === bonusMonthIndex && input.isBonusPensionable ? currentMonthBonus * (input.pensionableBonusPercentage / 100) : 0;
         const currentPensionableIncome = pensionableSalary + currentPensionableBonus;
         const currentMonthPension = currentPensionableIncome * (input.pensionContribution / 100);
-
-        const taxableBenefitsThisMonth = (input.taxableBenefits ?? 0) / 12;
-
-        cumulativeGross += currentMonthGross;
-        cumulativePension += currentMonthPension;
-
-        const cumulativeTaxableIncome = Math.max(0, (cumulativeGross + (taxableBenefitsThisMonth * (index + 1))) - cumulativePension - (personalAllowance/12 * (index+1)));
-        const ytdTax = calculateIncomeTax(cumulativeTaxableIncome, input.region, input.taxYear);
-        const currentMonthTax = Math.max(0, ytdTax - cumulativeTax);
-        cumulativeTax += currentMonthTax;
         
-        const currentMonthNic = calculateNIC(currentMonthGross, input.taxYear);
-        cumulativeNic += currentMonthNic;
+        // Apportion annual tax/nic and then add bonus tax/nic in the bonus month
+        let regularMonthlyTax = 0;
+        let regularMonthlyNic = 0;
+
+        if (annualSalary > 0) {
+          const annualTaxOnSalary = calculateIncomeTax(Math.max(0, (annualSalary + (input.taxableBenefits ?? 0) - annualPensionContribution) - personalAllowance), input.region, input.taxYear);
+          const annualNicOnSalary = calculateNICForIncome(annualSalary, input.taxYear);
+          regularMonthlyTax = annualTaxOnSalary / 12;
+          regularMonthlyNic = annualNicOnSalary / 12;
+        }
+
+        let bonusTax = 0;
+        let bonusNic = 0;
+        if (currentMonthBonus > 0) {
+           const taxOnTotal = calculateIncomeTax(annualTaxableIncome, input.region, input.taxYear);
+           const taxOnSalary = calculateIncomeTax(Math.max(0, (annualSalary + (input.taxableBenefits ?? 0) - annualPensionContribution) - personalAllowance), input.region, input.taxYear);
+           bonusTax = taxOnTotal - taxOnSalary;
+           
+           const nicOnTotal = calculateNICForIncome(grossAnnualIncome, input.taxYear);
+           const nicOnSalary = calculateNICForIncome(annualSalary, input.taxYear);
+           bonusNic = nicOnTotal - nicOnSalary;
+        }
+
+        const currentMonthTax = regularMonthlyTax + bonusTax;
+        const currentMonthNic = regularMonthlyNic + bonusNic;
         
         const takeHome = currentMonthGross - currentMonthTax - currentMonthNic - currentMonthPension;
 
@@ -267,6 +264,7 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
         });
     });
     
+    // Recalculate totals from the monthly breakdown to ensure consistency
     const finalGross = monthlyBreakdown.reduce((sum, m) => sum + m.gross, 0);
     const finalTax = monthlyBreakdown.reduce((sum, m) => sum + m.tax, 0);
     const finalNic = monthlyBreakdown.reduce((sum, m) => sum + m.nic, 0);
@@ -289,5 +287,3 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
         monthlyBreakdown,
     };
 }
-
-    
