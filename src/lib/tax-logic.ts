@@ -233,66 +233,57 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
     const payRiseMonthIndex = input.hasPayRise ? months.indexOf(input.payRiseMonth) : 12;
     const bonusMonthIndex = months.indexOf(input.bonusMonth);
 
-    let annualSalary = input.salary;
-    if (input.hasPayRise && input.newSalary) {
-      const monthsAtOldSalary = payRiseMonthIndex;
-      const monthsAtNewSalary = 12 - payRiseMonthIndex;
-      annualSalary = (input.salary / 12 * monthsAtOldSalary) + (input.newSalary / 12 * monthsAtNewSalary);
-    }
-    
-    const grossAnnualIncome = annualSalary + (input.bonus ?? 0);
-    
-    const pensionableBonus = input.isBonusPensionable && input.bonus ? input.bonus * (input.pensionableBonusPercentage / 100) : 0;
-    const totalPensionableIncome = annualSalary + pensionableBonus;
-    const annualPensionContribution = totalPensionableIncome * (input.pensionContribution / 100);
-    
-    // Adjusted gross income for tax purposes includes benefits.
-    const adjustedGrossForTax = grossAnnualIncome + (input.taxableBenefits ?? 0);
-    
-    const personalAllowance = calculatePersonalAllowance(adjustedGrossForTax - annualPensionContribution, input.taxCode, input.taxYear);
-    
-    // Taxable Income = (Gross Income + Benefits) - Pension - Personal Allowance
-    const annualTaxableIncome = Math.max(0, adjustedGrossForTax - annualPensionContribution - personalAllowance);
-
-    const annualTax = calculateIncomeTax(annualTaxableIncome, input.region, input.taxYear, input.taxCode);
-    
-    const annualNic = calculateNICForIncome(grossAnnualIncome, input.taxYear);
-    
-    const annualTakeHome = grossAnnualIncome - annualTax - annualNic - annualPensionContribution;
-    
     const monthlyBreakdown: MonthlyResult[] = [];
+    let cumulativeGross = 0;
+    let cumulativePension = 0;
     
-    let taxOnBonus = 0;
-    if ((input.bonus ?? 0) > 0) {
-      const grossWithoutBonus = grossAnnualIncome - (input.bonus ?? 0);
-      const adjustedForTaxWithoutBonus = grossWithoutBonus + (input.taxableBenefits ?? 0);
-      const allowanceWithoutBonus = calculatePersonalAllowance(adjustedForTaxWithoutBonus - (annualPensionContribution - (pensionableBonus * (input.pensionContribution/100))), input.taxCode, input.taxYear);
-      const taxableIncomeWithoutBonus = Math.max(0, adjustedForTaxWithoutBonus - (annualPensionContribution - (pensionableBonus * (input.pensionContribution/100))) - allowanceWithoutBonus);
-      const taxWithoutBonus = calculateIncomeTax(taxableIncomeWithoutBonus, input.region, input.taxYear, input.taxCode);
-      taxOnBonus = Math.max(0, annualTax - taxWithoutBonus);
-    }
-    const taxOnSalaryAndBenefits = annualTax - taxOnBonus;
-
-    let nicOnBonus = 0;
-    if ((input.bonus ?? 0) > 0) {
-        const nicWithoutBonus = calculateNICForIncome(annualSalary, input.taxYear);
-        nicOnBonus = Math.max(0, annualNic - nicWithoutBonus);
-    }
-    const nicOnSalary = annualNic - nicOnBonus;
-    
+    // First pass to calculate annual gross and pension for allowance calculation
     months.forEach((month, index) => {
         const currentAnnualSalary = (input.hasPayRise && input.newSalary && index >= payRiseMonthIndex) 
             ? input.newSalary 
             : input.salary;
+        const monthlySalary = currentAnnualSalary / 12;
 
-        let monthlySalary = currentAnnualSalary / 12;
-        
         let backPay = 0;
         if(input.hasPayRise && input.newSalary && index === payRiseMonthIndex && payRiseMonthIndex > 0) {
             const salaryDifference = (input.newSalary - input.salary) / 12;
             backPay = salaryDifference * payRiseMonthIndex;
         }
+
+        const currentMonthBonus = index === bonusMonthIndex ? (input.bonus ?? 0) : 0;
+        const currentMonthGross = monthlySalary + backPay + currentMonthBonus;
         
+        const pensionableSalaryForMonth = monthlySalary + backPay;
+        const pensionableBonusForMonth = index === bonusMonthIndex && input.isBonusPensionable ? currentMonthBonus * (input.pensionableBonusPercentage / 100) : 0;
+        const currentMonthPension = (pensionableSalaryForMonth + pensionableBonusForMonth) * (input.pensionContribution / 100);
+
+        cumulativeGross += currentMonthGross;
+        cumulativePension += currentMonthPension;
+    });
+
+    const adjustedGrossForTax = cumulativeGross + (input.taxableBenefits ?? 0);
+    const personalAllowance = calculatePersonalAllowance(adjustedGrossForTax - cumulativePension, input.taxCode, input.taxYear);
+    const annualTaxableIncome = Math.max(0, adjustedGrossForTax - cumulativePension - personalAllowance);
+    const annualTax = calculateIncomeTax(annualTaxableIncome, input.region, input.taxYear, input.taxCode);
+    const annualNic = calculateNICForIncome(cumulativeGross, input.taxYear);
+
+    // Second pass to calculate monthly deductions and take-home
+    let cumulativeTax = 0;
+    let cumulativeNic = 0;
+    let runningGross = 0;
+
+    months.forEach((month, index) => {
+        const currentAnnualSalary = (input.hasPayRise && input.newSalary && index >= payRiseMonthIndex) 
+            ? input.newSalary 
+            : input.salary;
+        const monthlySalary = currentAnnualSalary / 12;
+
+        let backPay = 0;
+        if(input.hasPayRise && input.newSalary && index === payRiseMonthIndex && payRiseMonthIndex > 0) {
+            const salaryDifference = (input.newSalary - input.salary) / 12;
+            backPay = salaryDifference * payRiseMonthIndex;
+        }
+
         const currentMonthBonus = index === bonusMonthIndex ? (input.bonus ?? 0) : 0;
         const currentMonthGross = monthlySalary + backPay + currentMonthBonus;
         
@@ -300,21 +291,45 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
         const pensionableBonusForMonth = index === bonusMonthIndex && input.isBonusPensionable ? currentMonthBonus * (input.pensionableBonusPercentage / 100) : 0;
         const currentMonthPension = (pensionableSalaryForMonth + pensionableBonusForMonth) * (input.pensionContribution / 100);
         
-        const currentMonthTax = (taxOnSalaryAndBenefits / 12) + (index === bonusMonthIndex ? taxOnBonus : 0);
-        const currentMonthNic = (nicOnSalary / 12) + (index === bonusMonthIndex ? nicOnBonus : 0);
+        runningGross += currentMonthGross;
+
+        // Calculate tax and NIC for the YTD amount, then subtract the previous cumulative amount
+        const ytdTax = calculateIncomeTax(
+            Math.max(0, (runningGross + (input.taxableBenefits ?? 0) * (index + 1) / 12) - cumulativePension * (index + 1) / 12 - personalAllowance * (index + 1) / 12),
+            input.region,
+            input.taxYear,
+            input.taxCode
+        );
+        const currentMonthTax = index > 0 ? ytdTax - cumulativeTax : (annualTax / 12); // Fallback for first month for simplicity
         
-        const takeHome = currentMonthGross - currentMonthTax - currentMonthNic - currentMonthPension;
+        const ytdNic = calculateNICForIncome(runningGross, input.taxYear);
+        const currentMonthNic = ytdNic - cumulativeNic;
+        
+        // More robust monthly tax/NI calc
+        const prevMonthGross = index > 0 ? monthlyBreakdown[index - 1].gross : 0;
+        const ytdGrossUpToPreviousMonth = runningGross - currentMonthGross;
+        
+        const ytdTaxUpToPreviousMonth = calculateIncomeTax(Math.max(0, (ytdGrossUpToPreviousMonth + (input.taxableBenefits ?? 0) * index / 12) - cumulativePension * index / 12 - personalAllowance * index / 12), input.region, input.taxYear, input.taxCode);
+        const ytdNicUpToPreviousMonth = calculateNICForIncome(ytdGrossUpToPreviousMonth, input.taxYear);
+
+        const thisMonthTax = ytdTax - ytdTaxUpToPreviousMonth;
+        const thisMonthNic = ytdNic - ytdNicUpToPreviousMonth;
+
+        const takeHome = currentMonthGross - thisMonthTax - thisMonthNic - currentMonthPension;
 
         monthlyBreakdown.push({
             month,
             gross: currentMonthGross,
             pension: currentMonthPension,
-            tax: currentMonthTax,
-            nic: currentMonthNic,
+            tax: thisMonthTax,
+            nic: thisMonthNic,
             takeHome: takeHome,
         });
+
+        cumulativeTax += thisMonthTax;
+        cumulativeNic += thisMonthNic;
     });
-    
+
     const finalGross = monthlyBreakdown.reduce((sum, m) => sum + m.gross, 0);
     const finalTax = monthlyBreakdown.reduce((sum, m) => sum + m.tax, 0);
     const finalNic = monthlyBreakdown.reduce((sum, m) => sum + m.nic, 0);
