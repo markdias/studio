@@ -112,48 +112,67 @@ function calculateNIC(grossAnnualIncome: number): number {
 
 
 export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationResults {
-  const grossAnnualIncome = input.salary + (input.bonus ?? 0);
-  const annualPension = grossAnnualIncome * (input.pensionContribution / 100);
+  const grossAnnualSalary = input.salary;
+  const grossAnnualIncome = grossAnnualSalary + (input.bonus ?? 0);
+  const incomeForTaxPurposes = grossAnnualIncome + (input.taxableBenefits ?? 0);
 
-  const adjustedNetIncome = grossAnnualIncome - annualPension;
-  const personalAllowance = calculatePersonalAllowance(grossAnnualIncome, input.taxCode);
-  const taxableIncome = Math.max(0, grossAnnualIncome - personalAllowance - annualPension);
+  const pensionableBonus = input.isBonusPensionable ? (input.bonus ?? 0) * (input.pensionableBonusPercentage / 100) : 0;
+  const pensionableSalary = grossAnnualSalary;
+  const totalPensionableIncome = pensionableSalary + pensionableBonus;
+
+  const annualPension = totalPensionableIncome * (input.pensionContribution / 100);
+
+  // Adjusted Net Income for personal allowance tapering. Taxable benefits don't count if through P11D, but we'll include them for a conservative estimate.
+  const adjustedNetIncome = incomeForTaxPurposes - annualPension;
+  const personalAllowance = calculatePersonalAllowance(adjustedNetIncome, input.taxCode);
+  
+  const taxableIncome = Math.max(0, incomeForTaxPurposes - annualPension - personalAllowance);
   
   const annualTax = calculateIncomeTax(taxableIncome, input.region);
+  // National Insurance is calculated on cash earnings (Salary + Bonus), not benefits in kind.
   const annualNic = calculateNIC(grossAnnualIncome);
 
   const totalDeductions = annualTax + annualNic + annualPension;
   const annualTakeHome = grossAnnualIncome - totalDeductions;
-
+  
   const effectiveTaxRate = grossAnnualIncome > 0 ? ((annualTax + annualNic) / grossAnnualIncome) * 100 : 0;
   const takeHome = Math.max(0, annualTakeHome);
 
   // Monthly breakdown
   const monthlySalary = input.salary / 12;
+  const monthlyBenefit = (input.taxableBenefits ?? 0) / 12;
   const monthlyBreakdown: MonthlyResult[] = [];
   
-  // A real PAYE system would be cumulative. This is a simplified non-cumulative monthly estimate.
+  let cumulativeTax = 0;
+  let cumulativeNic = 0;
+  let cumulativeGross = 0;
+  let cumulativePension = 0;
+
   months.forEach((month, index) => {
       const isBonusMonth = month === input.bonusMonth && (input.bonus ?? 0) > 0;
-      const currentMonthGross = monthlySalary + (isBonusMonth ? (input.bonus ?? 0) : 0);
-      const currentMonthPension = currentMonthGross * (input.pensionContribution / 100);
-
-      const cumulativeGross = (monthlySalary * (index + 1)) + (isBonusMonth && monthlyBreakdown.every(m => m.month !== input.bonusMonth) ? (input.bonus ?? 0) : 0) + monthlyBreakdown.reduce((acc, prev) => acc + prev.gross - (prev.month === input.bonusMonth ? (input.bonus ?? 0) : 0) - monthlySalary, 0);
-
-      const cumulativePension = cumulativeGross * (input.pensionContribution / 100);
+      const currentMonthBonus = isBonusMonth ? (input.bonus ?? 0) : 0;
+      const currentMonthGross = monthlySalary + currentMonthBonus;
       
-      const annualisedGross = currentMonthGross * 12; // Simplistic annualisation for allowance calculation
-      const cumulativePersonalAllowance = calculatePersonalAllowance(grossAnnualIncome, input.taxCode) / 12 * (index + 1);
+      const currentPensionableBonus = isBonusMonth && input.isBonusPensionable ? currentMonthBonus * (input.pensionableBonusPercentage / 100) : 0;
+      const currentPensionableSalary = monthlySalary;
+      const currentPensionableIncome = currentPensionableSalary + currentPensionableBonus;
+      const currentMonthPension = currentPensionableIncome * (input.pensionContribution / 100);
 
-      const cumulativeTaxable = Math.max(0, cumulativeGross - cumulativePersonalAllowance - cumulativePension);
-      const cumulativeTax = calculateIncomeTax(cumulativeTaxable, input.region);
-
-      const previousMonthsTax = monthlyBreakdown.reduce((acc, prevMonth) => acc + prevMonth.tax, 0);
-      const currentMonthTax = Math.max(0, cumulativeTax - previousMonthsTax);
+      const currentMonthBenefit = monthlyBenefit;
+      const currentIncomeForTax = currentMonthGross + currentMonthBenefit;
       
-      const cumulativeNic = calculateNIC(cumulativeGross);
-      const previousMonthsNic = monthlyBreakdown.reduce((acc, prevMonth) => acc + prevMonth.nic, 0);
-      const currentMonthNic = Math.max(0, cumulativeNic - previousMonthsNic);
+      const yearToDateGross = cumulativeGross + currentMonthGross;
+      const yearToDatePension = cumulativePension + currentMonthPension;
+      const yearToDateIncomeForTax = yearToDateGross + (currentMonthBenefit * (index + 1));
+      
+      const yearToDateAllowance = (personalAllowance / 12) * (index + 1);
+      const yearToDateTaxable = Math.max(0, yearToDateIncomeForTax - yearToDatePension - yearToDateAllowance);
+      
+      const yearToDateTax = calculateIncomeTax(yearToDateTaxable, input.region);
+      const currentMonthTax = Math.max(0, yearToDateTax - cumulativeTax);
+
+      const yearToDateNic = calculateNIC(yearToDateGross);
+      const currentMonthNic = Math.max(0, yearToDateNic - cumulativeNic);
 
       const currentMonthTakeHome = currentMonthGross - currentMonthTax - currentMonthNic - currentMonthPension;
 
@@ -165,6 +184,11 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
           nic: currentMonthNic,
           takeHome: currentMonthTakeHome,
       });
+
+      cumulativeTax += currentMonthTax;
+      cumulativeNic += currentMonthNic;
+      cumulativeGross += currentMonthGross;
+      cumulativePension += currentMonthPension;
   });
   
   // Recalculate annual totals from the more accurate monthly breakdown

@@ -46,6 +46,7 @@ import { generateTaxSavingTipsAction } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { Slider } from "@/components/ui/slider";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Switch } from "@/components/ui/switch";
 
 
 const initialValues: TaxCalculatorSchema = {
@@ -55,6 +56,9 @@ const initialValues: TaxCalculatorSchema = {
   region: "England",
   bonusMonth: "April",
   taxCode: "1257L",
+  taxableBenefits: 0,
+  isBonusPensionable: false,
+  pensionableBonusPercentage: 100,
 };
 
 export default function TaxCalculator() {
@@ -105,7 +109,7 @@ export default function TaxCalculator() {
       salary: parsed.data.salary,
       bonus: parsed.data.bonus,
       pensionContributions: (parsed.data.salary + (parsed.data.bonus ?? 0)) * ((parsed.data.pensionContribution ?? 0) / 100),
-      otherTaxableBenefits: 0,
+      otherTaxableBenefits: parsed.data.taxableBenefits,
       region: parsed.data.region,
     });
 
@@ -174,6 +178,19 @@ export default function TaxCalculator() {
                 />
                 <FormField
                   control={form.control}
+                  name="taxableBenefits"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Annual Taxable Benefits (£)</FormLabel>
+                      <FormControl>
+                        <Input type="number" placeholder="e.g., 2000" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
                   name="bonus"
                   render={({ field }) => (
                     <FormItem>
@@ -228,6 +245,45 @@ export default function TaxCalculator() {
                     </FormItem>
                   )}
                 />
+                 <div className="space-y-4 rounded-md border p-4">
+                  <FormField
+                    control={form.control}
+                    name="isBonusPensionable"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center justify-between">
+                        <FormLabel>Bonus is Pensionable</FormLabel>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            disabled={(watchedValues.bonus ?? 0) <= 0}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                   {watchedValues.isBonusPensionable && (watchedValues.bonus ?? 0) > 0 && (
+                      <FormField
+                        control={form.control}
+                        name="pensionableBonusPercentage"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Pensionable Portion of Bonus ({field.value}%)</FormLabel>
+                            <FormControl>
+                              <Slider
+                                min={0}
+                                max={100}
+                                step={1}
+                                value={[field.value ?? 100]}
+                                onValueChange={(value) => field.onChange(value[0])}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                </div>
                 <FormField
                   control={form.control}
                   name="region"
