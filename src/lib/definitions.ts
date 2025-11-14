@@ -1,3 +1,4 @@
+
 import { z } from "zod";
 
 export const regions = ["England", "Scotland", "Wales", "Northern Ireland"] as const;
@@ -48,6 +49,13 @@ export const taxCalculatorSchema = z.object({
   enablePensionComparison: z.boolean().optional().default(false),
   adjustedPensionContribution: z.coerce.number().min(0, "Pension contribution cannot be negative.").max(100, "Pension contribution cannot exceed 100%.").optional().default(10),
 
+  // Student Loan
+  studentLoanPlan1: z.boolean().default(false),
+  studentLoanPlan2: z.boolean().default(false),
+  studentLoanPlan4: z.boolean().default(false),
+  studentLoanPlan5: z.boolean().default(false),
+  postgraduateLoan: z.boolean().default(false),
+
 
 }).refine(data => !data.hasPayRise || (data.newSalary !== undefined && data.newSalary > data.salary), {
   message: "New salary must be greater than the current salary.",
@@ -62,6 +70,7 @@ export interface MonthlyResult {
   tax: number;
   nic: number;
   pension: number;
+  studentLoan: number;
   takeHome: number;
 }
 
@@ -73,6 +82,7 @@ export interface CalculationResults {
   annualTax: number;
   annualNic: number;
   annualPension: number;
+  annualStudentLoan: number;
   personalAllowance: number;
   effectiveTaxRate: number;
   breakdown: { name: string; value: number; fill: string }[];
@@ -184,5 +194,4 @@ export const TaxChildcareChatOutputSchema = z.object({
 });
 export type TaxChildcareChatOutput = z.infer<typeof TaxChildcareChatOutputSchema>;
 
-    
     
