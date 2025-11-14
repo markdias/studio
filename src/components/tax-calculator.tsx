@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertTriangle, Lightbulb, Loader2, CalendarIcon } from "lucide-react";
+import { AlertTriangle, Lightbulb, Loader2, CalendarIcon, Baby } from "lucide-react";
 import {
   ChartContainer,
   ChartTooltip,
@@ -42,7 +42,7 @@ import { Separator } from "@/components/ui/separator";
 
 import { taxCalculatorSchema, type TaxCalculatorSchema, type CalculationResults, regions, months, taxYears } from "@/lib/definitions";
 import { calculateTakeHomePay } from "@/lib/tax-logic";
-import { generateTaxSavingTipsAction } from "@/app/actions";
+import { generateTaxSavingTipsAction, generateChildcareAdviceAction } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { Slider } from "@/components/ui/slider";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -63,6 +63,10 @@ const initialValues: TaxCalculatorSchema = {
   hasPayRise: false,
   newSalary: 60000,
   payRiseMonth: "April",
+  // Childcare
+  numberOfChildren: 0,
+  daysPerWeekInChildcare: 0,
+  dailyChildcareRate: 0,
 };
 
 export default function TaxCalculator() {
@@ -70,6 +74,9 @@ export default function TaxCalculator() {
   const [results, setResults] = useState<CalculationResults | null>(null);
   const [aiTips, setAiTips] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [childcareAdvice, setChildcareAdvice] = useState<string>("");
+  const [isGeneratingChildcareAdvice, setIsGeneratingChildcareAdvice] = useState(false);
+
 
   const form = useForm<TaxCalculatorSchema>({
     resolver: zodResolver(taxCalculatorSchema),
@@ -139,6 +146,51 @@ export default function TaxCalculator() {
 
     setIsGenerating(false);
   };
+
+  const handleGenerateChildcareAdvice = async () => {
+    const values = form.getValues();
+    const parsed = taxCalculatorSchema.safeParse(values);
+    if (!parsed.success) {
+      toast({
+        title: "Invalid Input",
+        description: "Please check your inputs before generating advice.",
+        variant: "destructive",
+      });
+      return;
+    }
+     if ((parsed.data.numberOfChildren ?? 0) <= 0) {
+      toast({
+        title: "No children specified",
+        description: "Please enter the number of children to get childcare advice.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsGeneratingChildcareAdvice(true);
+    setChildcareAdvice("");
+
+    const actionResult = await generateChildcareAdviceAction({
+      annualGrossIncome: results?.grossAnnualIncome ?? parsed.data.salary,
+      pensionContributionPercentage: parsed.data.pensionContribution,
+      numberOfChildren: parsed.data.numberOfChildren,
+      daysPerWeekInChildcare: parsed.data.daysPerWeekInChildcare,
+      dailyChildcareRate: parsed.data.dailyChildcareRate,
+    });
+
+    if (actionResult.success && actionResult.data) {
+      setChildcareAdvice(actionResult.data.analysis);
+    } else {
+      toast({
+        title: "Error",
+        description: actionResult.error,
+        variant: "destructive",
+      });
+    }
+
+    setIsGeneratingChildcareAdvice(false);
+  };
+  
   
   const chartConfig = useMemo(() => {
     if (!results) return {};
@@ -404,6 +456,49 @@ export default function TaxCalculator() {
                     </FormItem>
                   )}
                 />
+
+                <div className="space-y-4 rounded-md border p-4">
+                  <h3 className="font-semibold text-base">Childcare Details</h3>
+                   <FormField
+                      control={form.control}
+                      name="numberOfChildren"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Number of Children in Childcare</FormLabel>
+                          <FormControl>
+                            <Input type="number" placeholder="e.g., 1" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="daysPerWeekInChildcare"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Days per Week (per child)</FormLabel>
+                          <FormControl>
+                            <Input type="number" placeholder="e.g., 3" {...field} disabled={(watchedValues.numberOfChildren ?? 0) <= 0} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="dailyChildcareRate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Daily Childcare Rate (£)</FormLabel>
+                          <FormControl>
+                            <Input type="number" placeholder="e.g., 60" {...field} disabled={(watchedValues.numberOfChildren ?? 0) <= 0} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                </div>
               </CardContent>
             </form>
           </Form>
@@ -564,6 +659,30 @@ export default function TaxCalculator() {
                     </Button>
                 </CardFooter>
             </Card>
+
+             <Card>
+                <CardHeader>
+                    <CardTitle className="font-headline flex items-center gap-2"><Baby className="text-accent" />AI Childcare &amp; Salary Sacrifice Advisor</CardTitle>
+                    <CardDescription>Analyze childcare costs and get advice on managing the £100k income threshold.</CardDescription>
+                </CardHeader>
+                <CardContent className="min-h-[100px] text-sm">
+                    {isGeneratingChildcareAdvice ? (
+                        <div className="flex items-center justify-center h-full">
+                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                        </div>
+                    ) : childcareAdvice ? (
+                        <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: childcareAdvice.replace(/\n/g, '<br />') }} />
+                    ) : (
+                        <p className="text-muted-foreground">Fill in the childcare details and click the button to generate advice.</p>
+                    )}
+                </CardContent>
+                <CardFooter>
+                    <Button onClick={handleGenerateChildcareAdvice} disabled={isGeneratingChildcareAdvice || (watchedValues.numberOfChildren ?? 0) <= 0}>
+                        {isGeneratingChildcareAdvice ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Analyzing...</> : "Analyze Childcare Costs"}
+                    </Button>
+                </CardFooter>
+            </Card>
+
         </div>
       </div>
     </FormProvider>

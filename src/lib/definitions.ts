@@ -29,6 +29,12 @@ export const taxCalculatorSchema = z.object({
   hasPayRise: z.boolean().default(false),
   newSalary: z.coerce.number().min(0).optional(),
   payRiseMonth: z.enum(months).default("April"),
+
+  // Childcare fields
+  numberOfChildren: z.coerce.number().min(0).optional().default(0),
+  daysPerWeekInChildcare: z.coerce.number().min(0).max(7).optional().default(0),
+  dailyChildcareRate: z.coerce.number().min(0).optional().default(0),
+
 }).refine(data => !data.hasPayRise || (data.newSalary !== undefined && data.newSalary > data.salary), {
   message: "New salary must be greater than the current salary.",
   path: ["newSalary"],
@@ -58,3 +64,42 @@ export interface CalculationResults {
   breakdown: { name: string; value: number; fill: string }[];
   monthlyBreakdown: MonthlyResult[];
 }
+
+// AI Flow Schemas
+
+export const TaxSavingTipsInputSchema = z.object({
+  salary: z.number().describe('Annual salary before deductions.'),
+  bonus: z.number().optional().describe('Annual bonus amount, if applicable.'),
+  pensionContributions: z
+    .number()
+    .optional()
+    .describe('Annual pension contributions.'),
+  otherTaxableBenefits: z
+    .number()
+    .optional()
+    .describe('Value of any other taxable benefits received.'),
+  region: z
+    .enum(['England', 'Scotland', 'Wales', 'Northern Ireland'])
+    .describe('The region of the UK the user resides in.'),
+});
+export type TaxSavingTipsInput = z.infer<typeof TaxSavingTipsInputSchema>;
+
+export const TaxSavingTipsOutputSchema = z.object({
+  tips: z.string().describe('Personalized tax saving tips.'),
+});
+export type TaxSavingTipsOutput = z.infer<typeof TaxSavingTipsOutputSchema>;
+
+
+export const ChildcareAdviceInputSchema = z.object({
+  annualGrossIncome: z.number().describe('The user\'s total annual gross income, including salary and any bonuses.'),
+  pensionContributionPercentage: z.number().describe('The percentage of income the user contributes to their pension.'),
+  numberOfChildren: z.number().describe('The number of children the user has in childcare.'),
+  daysPerWeekInChildcare: z.number().describe('The number of days per week a single child attends childcare.'),
+  dailyChildcareRate: z.number().describe('The daily cost of childcare for a single child.'),
+});
+export type ChildcareAdviceInput = z.infer<typeof ChildcareAdviceInputSchema>;
+
+export const ChildcareAdviceOutputSchema = z.object({
+  analysis: z.string().describe('A detailed analysis of the user\'s financial situation, including calculated childcare costs, the impact of the personal allowance taper, and suggested strategies like increasing pension contributions or using salary sacrifice to optimize their finances.'),
+});
+export type ChildcareAdviceOutput = z.infer<typeof ChildcareAdviceOutputSchema>;

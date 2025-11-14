@@ -9,33 +9,14 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import { type TaxSavingTipsInput, TaxSavingTipsInputSchema, TaxSavingTipsOutputSchema } from '@/lib/definitions';
 
-const TaxSavingTipsInputSchema = z.object({
-  salary: z.number().describe('Annual salary before deductions.'),
-  bonus: z.number().optional().describe('Annual bonus amount, if applicable.'),
-  pensionContributions: z
-    .number()
-    .optional()
-    .describe('Annual pension contributions.'),
-  otherTaxableBenefits: z
-    .number()
-    .optional()
-    .describe('Value of any other taxable benefits received.'),
-  region: z
-    .enum(['England', 'Scotland', 'Wales', 'Northern Ireland'])
-    .describe('The region of the UK the user resides in.'),
-});
-export type TaxSavingTipsInput = z.infer<typeof TaxSavingTipsInputSchema>;
+export type { TaxSavingTipsInput, TaxSavingTipsOutput } from '@/lib/definitions';
 
-const TaxSavingTipsOutputSchema = z.object({
-  tips: z.string().describe('Personalized tax saving tips.'),
-});
-export type TaxSavingTipsOutput = z.infer<typeof TaxSavingTipsOutputSchema>;
 
 export async function getTaxSavingTips(
   input: TaxSavingTipsInput
-): Promise<TaxSavingTipsOutput> {
+): Promise<import('@/lib/definitions').TaxSavingTipsOutput> {
   return taxSavingTipsFlow(input);
 }
 
