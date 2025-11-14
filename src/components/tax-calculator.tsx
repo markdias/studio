@@ -455,6 +455,7 @@ ${actionResult.data.summary}
     setIsTaxChildcareChatLoading(true);
 
     const actionResult = await taxChildcareChatAction({
+      financialContext: getFinancialContext(),
       history: newHistory,
       question: taxChildcareChatInput,
     });

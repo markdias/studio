@@ -136,6 +136,8 @@ const FinancialContextSchema = z.object({
   annualNic: z.number().optional(),
   annualPension: z.number().optional(),
   personalAllowance: z.number().optional(),
+  // For childcare chat
+  partnerIncome: z.number().optional(),
 });
 
 const ChatMessageSchema = z.object({
@@ -158,6 +160,7 @@ export type FinancialChatOutput = z.infer<typeof FinancialChatOutputSchema>;
 
 // Tax Childcare Flow
 export const TaxChildcareChatInputSchema = z.object({
+  financialContext: FinancialContextSchema.describe("The user's current financial data from the calculator."),
   history: z.array(ChatMessageSchema).describe('The history of the conversation so far.'),
   question: z.string().describe('The latest question or answer from the user.'),
 });
