@@ -206,42 +206,6 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
     const annualTaxableIncome = Math.max(0, annualAdjustedNet - finalPersonalAllowance);
     const annualTax = calculateTaxOnIncome(annualTaxableIncome, region, taxYear);
     
-    // --- 2. Calculate Monthly Breakdown ---
-    const monthlyBreakdown: MonthlyResult[] = [];
-    let cumulativeTax = 0;
-    let cumulativeNic = 0;
-
-    for (let i = 0; i < 12; i++) {
-        const month = months[i];
-        const grossThisMonthFromSalary = monthlySalaries[i];
-        const bonusThisMonth = (i === bonusMonthIndex) ? bonus : 0;
-        
-        const pensionFromSalaryThisMonth = grossThisMonthFromSalary * (pensionContribution / 100);
-        const pensionFromBonusThisMonth = (i === bonusMonthIndex) ? annualPensionFromBonus : 0;
-        const pensionThisMonth = pensionFromSalaryThisMonth + pensionFromBonusThisMonth;
-        
-        // The gross income for NIC/Tax calculation this month must exclude the pension part
-        const grossForCalcThisMonth = grossThisMonthFromSalary + bonusThisMonth - pensionThisMonth;
-
-        const nicThisMonth = calculateNICForPeriod(grossForCalcThisMonth, taxYear);
-        cumulativeNic += nicThisMonth;
-
-        const taxThisMonth = (annualTax / 12);
-        cumulativeTax += taxThisMonth;
-
-        const takeHomeThisMonth = grossForCalcThisMonth - taxThisMonth - nicThisMonth;
-
-        monthlyBreakdown.push({
-            month,
-            gross: grossThisMonth,
-            pension: pensionThisMonth,
-            tax: taxThisMonth,
-            nic: nicThisMonth,
-            takeHome: takeHomeThisMonth + pensionThisMonth, // Add pension back for display take-home
-        });
-    }
-
-    // Recalculate monthly tax to be more accurate, especially with bonuses
     let annualNicTotal = 0;
     const finalMonthlyBreakdown: MonthlyResult[] = [];
 
@@ -270,7 +234,13 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
             const taxOnSalary = calculateTaxOnIncome(taxableSalary, region, taxYear);
             
             const taxOnBonus = annualTax - taxOnSalary;
-            taxThisMonth = (taxOnSalary / 12) + taxOnBonus;
+            const regularMonthlyTax = taxOnSalary / 12;
+
+            if (i === bonusMonthIndex) {
+                 taxThisMonth = regularMonthlyTax + taxOnBonus;
+            } else {
+                 taxThisMonth = regularMonthlyTax;
+            }
         }
         
         const takeHomeThisMonth = grossThisMonth - pensionThisMonth - taxThisMonth - nicThisMonth;
@@ -305,5 +275,3 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
         monthlyBreakdown: finalMonthlyBreakdown,
     };
 }
-
-    
