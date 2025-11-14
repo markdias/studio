@@ -734,6 +734,9 @@ ${actionResult.data.summary}
                             <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
                                 <div className="space-y-0.5">
                                     <FormLabel>Childcare & Benefits</FormLabel>
+                                    <FormDescription>
+                                        Tools for childcare costs and support.
+                                    </FormDescription>
                                 </div>
                                 <FormControl>
                                 <Switch
