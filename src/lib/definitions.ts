@@ -50,6 +50,7 @@ export const taxCalculatorSchema = z.object({
   adjustedPensionContribution: z.coerce.number().min(0, "Pension contribution cannot be negative.").max(100, "Pension contribution cannot exceed 100%.").optional().default(10),
 
   // Student Loan
+  showStudentLoan: z.boolean().default(false),
   studentLoanPlan1: z.boolean().default(false),
   studentLoanPlan2: z.boolean().default(false),
   studentLoanPlan4: z.boolean().default(false),

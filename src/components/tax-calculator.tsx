@@ -83,6 +83,7 @@ const initialValues: TaxCalculatorSchema = {
   claimingUniversalCredit: false,
   claimingTaxFreeChildcare: false,
   // Student Loan
+  showStudentLoan: false,
   studentLoanPlan1: false,
   studentLoanPlan2: false,
   studentLoanPlan4: false,
@@ -729,6 +730,36 @@ ${actionResult.data.summary}
                         </FormItem>
                         )}
                     />
+                    <Separator />
+                     <FormField
+                        control={form.control}
+                        name="showStudentLoan"
+                        render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between">
+                            <div className="space-y-0.5">
+                                <FormLabel>Show Student Loan Calculator</FormLabel>
+                                <FormDescription>
+                                    Enable to input student loan details.
+                                </FormDescription>
+                            </div>
+                            <FormControl>
+                            <Switch
+                                checked={field.value}
+                                onCheckedChange={(checked) => {
+                                    field.onChange(checked);
+                                    if (!checked) {
+                                        form.setValue('studentLoanPlan1', false);
+                                        form.setValue('studentLoanPlan2', false);
+                                        form.setValue('studentLoanPlan4', false);
+                                        form.setValue('studentLoanPlan5', false);
+                                        form.setValue('postgraduateLoan', false);
+                                    }
+                                }}
+                            />
+                            </FormControl>
+                        </FormItem>
+                        )}
+                    />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-6">
                     {/* Column 1 */}
@@ -1046,84 +1077,71 @@ ${actionResult.data.summary}
                     </div>
                     {/* Column 3 */}
                     <div className="space-y-6">
-                        <div className="space-y-4 rounded-md border p-4 h-full">
-                             <h3 className="font-semibold text-base flex items-center gap-2"><GraduationCap className="h-5 w-5" />Student Loan</h3>
-                             <FormField
-                                control={form.control}
-                                name="studentLoanPlan1"
-                                render={({ field }) => (
-                                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                                    <FormControl>
-                                    <Checkbox
-                                        checked={field.value}
-                                        onCheckedChange={field.onChange}
-                                    />
-                                    </FormControl>
-                                    <FormLabel>Plan 1</FormLabel>
-                                </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="studentLoanPlan2"
-                                render={({ field }) => (
-                                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                                    <FormControl>
-                                    <Checkbox
-                                        checked={field.value}
-                                        onCheckedChange={field.onChange}
-                                    />
-                                    </FormControl>
-                                    <FormLabel>Plan 2</FormLabel>
-                                </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="studentLoanPlan4"
-                                render={({ field }) => (
-                                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                                    <FormControl>
-                                    <Checkbox
-                                        checked={field.value}
-                                        onCheckedChange={field.onChange}
-                                    />
-                                    </FormControl>
-                                    <FormLabel>Plan 4</FormLabel>
-                                </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="studentLoanPlan5"
-                                render={({ field }) => (
-                                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                                    <FormControl>
-                                    <Checkbox
-                                        checked={field.value}
-                                        onCheckedChange={field.onChange}
-                                    />
-                                    </FormControl>
-                                    <FormLabel>Plan 5</FormLabel>
-                                </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="postgraduateLoan"
-                                render={({ field }) => (
-                                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                                    <FormControl>
-                                    <Checkbox
-                                        checked={field.value}
-                                        onCheckedChange={field.onChange}
-                                    />
-                                    </FormControl>
-                                    <FormLabel>Postgraduate Loan</FormLabel>
-                                </FormItem>
-                                )}
-                            />
-                        </div>
+                        {watchedValues.showStudentLoan && (
+                            <div className="space-y-4 rounded-md border p-4 h-full">
+                                <h3 className="font-semibold text-base flex items-center gap-2"><GraduationCap className="h-5 w-5" />Student Loan</h3>
+                                <FormField
+                                    control={form.control}
+                                    name="studentLoanPlan1"
+                                    render={({ field }) => (
+                                        <FormItem className="flex flex-row items-center justify-between">
+                                            <FormLabel>Plan 1</FormLabel>
+                                            <FormControl>
+                                                <Switch checked={field.value} onCheckedChange={field.onChange} />
+                                            </FormControl>
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="studentLoanPlan2"
+                                    render={({ field }) => (
+                                        <FormItem className="flex flex-row items-center justify-between">
+                                            <FormLabel>Plan 2</FormLabel>
+                                            <FormControl>
+                                                <Switch checked={field.value} onCheckedChange={field.onChange} />
+                                            </FormControl>
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="studentLoanPlan4"
+                                    render={({ field }) => (
+                                        <FormItem className="flex flex-row items-center justify-between">
+                                            <FormLabel>Plan 4</FormLabel>
+                                            <FormControl>
+                                                <Switch checked={field.value} onCheckedChange={field.onChange} />
+                                            </FormControl>
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="studentLoanPlan5"
+                                    render={({ field }) => (
+                                        <FormItem className="flex flex-row items-center justify-between">
+                                            <FormLabel>Plan 5</FormLabel>
+                                            <FormControl>
+                                                <Switch checked={field.value} onCheckedChange={field.onChange} />
+                                            </FormControl>
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="postgraduateLoan"
+                                    render={({ field }) => (
+                                        <FormItem className="flex flex-row items-center justify-between">
+                                            <FormLabel>Postgraduate Loan</FormLabel>
+                                            <FormControl>
+                                                <Switch checked={field.value} onCheckedChange={field.onChange} />
+                                            </FormControl>
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
+                        )}
                     </div>
 
                     {/* Column 4 - Childcare */}
@@ -1514,7 +1532,5 @@ ${actionResult.data.summary}
     </FormProvider>
   );
 }
-
-    
 
     

@@ -199,6 +199,9 @@ function calculateNICForPeriod(grossIncomeForPeriod: number, year: TaxYear): num
 }
 
 function calculateStudentLoanForPeriod(grossIncomeForPeriod: number, year: TaxYear, input: TaxCalculatorSchema): number {
+  if (!input.showStudentLoan) {
+    return 0;
+  }
   const loanConfig = getTaxYearData(year).STUDENT_LOAN;
   let totalRepayment = 0;
 
@@ -266,33 +269,35 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
     // --- Monthly Breakdown using Cumulative Calculation ---
     let cumulativeGrossYTD = 0;
     let cumulativeTaxPaidYTD = 0;
+    let cumulativePensionYTD = 0;
     const finalMonthlyBreakdown: MonthlyResult[] = [];
     
     for (let i = 0; i < 12; i++) {
         const month = months[i];
         const grossThisMonthFromSalary = monthlySalaries[i];
         const bonusThisMonth = (i === bonusMonthIndex) ? bonus : 0;
-        const grossThisMonth = grossThisMonthFromSalary + bonusThisMonth;
-
+        
         const pensionFromSalaryThisMonth = grossThisMonthFromSalary * (pensionContribution / 100);
         const pensionFromBonusThisMonth = bonusThisMonth * (bonusPensionContribution / 100);
         const pensionThisMonth = pensionFromSalaryThisMonth + pensionFromBonusThisMonth;
+        
+        const grossThisMonth = grossThisMonthFromSalary + bonusThisMonth;
 
         cumulativeGrossYTD += grossThisMonth;
+        cumulativePensionYTD += pensionThisMonth;
         
         const grossYTDForTax = cumulativeGrossYTD + (taxableBenefits / 12 * (i + 1));
-        const pensionYTD = finalMonthlyBreakdown.reduce((acc, m) => acc + m.pension, pensionThisMonth);
-        const adjustedNetYTD = grossYTDForTax - pensionYTD;
+        const adjustedNetYTD = grossYTDForTax - cumulativePensionYTD;
 
-        const annualisedAdjustedNet = adjustedNetYTD / (i + 1) * 12;
-        const paForYTD = calculateAnnualPersonalAllowance(annualisedAdjustedNet, parsedCodeAllowance, taxYear);
+        const paForYTD = calculateAnnualPersonalAllowance(adjustedNetYTD / (i + 1) * 12, parsedCodeAllowance, taxYear);
         const taxableIncomeYTD = Math.max(0, adjustedNetYTD - (paForYTD / 12 * (i + 1)));
 
         const totalTaxDueYTD = calculateTaxOnIncome(taxableIncomeYTD, region, taxYear);
         const taxThisMonth = Math.max(0, totalTaxDueYTD - cumulativeTaxPaidYTD);
         cumulativeTaxPaidYTD += taxThisMonth;
 
-        const nicThisMonth = calculateNICForPeriod(grossThisMonth, taxYear);
+        const nicableIncomeThisMonth = grossThisMonth; // For monthly NIC, pension is not deducted
+        const nicThisMonth = calculateNICForPeriod(nicableIncomeThisMonth, taxYear);
         const studentLoanThisMonth = calculateStudentLoanForPeriod(grossThisMonth, taxYear, input);
 
         const takeHomeThisMonth = grossThisMonth - pensionThisMonth - taxThisMonth - nicThisMonth - studentLoanThisMonth;
