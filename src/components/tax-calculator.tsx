@@ -40,7 +40,7 @@ import {
 import { PieChart, Pie, Cell } from "recharts";
 import { Separator } from "@/components/ui/separator";
 
-import { taxCalculatorSchema, type TaxCalculatorSchema, type CalculationResults, regions, months, taxYears } from "@/lib/definitions";
+import { taxCalculatorSchema, type TaxCalculatorSchema, type CalculationResults, regions, months } from "@/lib/definitions";
 import { calculateTakeHomePay } from "@/lib/tax-logic";
 import { generateTaxSavingTipsAction } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
@@ -112,7 +112,6 @@ export default function TaxCalculator() {
     setIsGenerating(true);
     setAiTips("");
 
-    // This needs updating based on how we want to pass pension info
     const { salary, bonus, pensionContribution } = parsed.data;
     const grossIncome = salary + (bonus ?? 0);
     const pensionAmount = grossIncome * (pensionContribution / 100);
@@ -156,36 +155,12 @@ export default function TaxCalculator() {
           <CardHeader>
             <CardTitle className="font-headline">Your Financial Details</CardTitle>
             <CardDescription>
-              Enter your income details to calculate your take-home pay.
+              Enter your income details to calculate your take-home pay for the 2024/25 tax year.
             </CardDescription>
           </CardHeader>
           <Form {...form}>
             <form>
               <CardContent className="space-y-6">
-                <FormField
-                    control={form.control}
-                    name="taxYear"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Tax Year</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select tax year" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {taxYears.map((year) => (
-                              <SelectItem key={year} value={year}>
-                                {year}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
                 <FormField
                   control={form.control}
                   name="salary"
@@ -550,3 +525,5 @@ export default function TaxCalculator() {
     </FormProvider>
   );
 }
+
+    

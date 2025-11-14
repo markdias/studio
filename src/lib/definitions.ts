@@ -56,3 +56,5 @@ export interface CalculationResults {
   breakdown: { name: string; value: number; fill: string }[];
   monthlyBreakdown: MonthlyResult[];
 }
+
+    
