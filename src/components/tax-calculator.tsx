@@ -50,6 +50,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Slider } from "@/components/ui/slider";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
@@ -430,13 +431,13 @@ export default function TaxCalculator() {
 ${actionResult.data.costSummary}
 
 **Income & Tax Allowance Analysis:**
-${action_result.data.incomeAnalysis}
+${actionResult.data.incomeAnalysis}
 
 **Optimization Strategies:**
-${action_result.data.optimizationStrategies}
+${actionResult.data.optimizationStrategies}
 
 **Summary:**
-${action_result.data.summary}
+${actionResult.data.summary}
       `.trim();
       setChildcareChatHistory([{ role: 'model', content: initialContent }]);
     } else {
@@ -1046,19 +1047,19 @@ ${action_result.data.summary}
                     {/* Column 3 */}
                     <div className="space-y-6">
                         <div className="space-y-4 rounded-md border p-4 h-full">
-                            <h3 className="font-semibold text-base flex items-center gap-2"><GraduationCap className="h-5 w-5" />Student Loan</h3>
+                             <h3 className="font-semibold text-base flex items-center gap-2"><GraduationCap className="h-5 w-5" />Student Loan</h3>
                              <FormField
                                 control={form.control}
                                 name="studentLoanPlan1"
                                 render={({ field }) => (
-                                <FormItem className="flex flex-row items-center justify-between">
-                                    <FormLabel>Plan 1</FormLabel>
+                                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
                                     <FormControl>
-                                    <Switch
+                                    <Checkbox
                                         checked={field.value}
                                         onCheckedChange={field.onChange}
                                     />
                                     </FormControl>
+                                    <FormLabel>Plan 1</FormLabel>
                                 </FormItem>
                                 )}
                             />
@@ -1066,14 +1067,14 @@ ${action_result.data.summary}
                                 control={form.control}
                                 name="studentLoanPlan2"
                                 render={({ field }) => (
-                                <FormItem className="flex flex-row items-center justify-between">
-                                    <FormLabel>Plan 2</FormLabel>
+                                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
                                     <FormControl>
-                                    <Switch
+                                    <Checkbox
                                         checked={field.value}
                                         onCheckedChange={field.onChange}
                                     />
                                     </FormControl>
+                                    <FormLabel>Plan 2</FormLabel>
                                 </FormItem>
                                 )}
                             />
@@ -1081,14 +1082,14 @@ ${action_result.data.summary}
                                 control={form.control}
                                 name="studentLoanPlan4"
                                 render={({ field }) => (
-                                <FormItem className="flex flex-row items-center justify-between">
-                                    <FormLabel>Plan 4</FormLabel>
+                                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
                                     <FormControl>
-                                    <Switch
+                                    <Checkbox
                                         checked={field.value}
                                         onCheckedChange={field.onChange}
                                     />
                                     </FormControl>
+                                    <FormLabel>Plan 4</FormLabel>
                                 </FormItem>
                                 )}
                             />
@@ -1096,14 +1097,14 @@ ${action_result.data.summary}
                                 control={form.control}
                                 name="studentLoanPlan5"
                                 render={({ field }) => (
-                                <FormItem className="flex flex-row items-center justify-between">
-                                    <FormLabel>Plan 5</FormLabel>
+                                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
                                     <FormControl>
-                                    <Switch
+                                    <Checkbox
                                         checked={field.value}
                                         onCheckedChange={field.onChange}
                                     />
                                     </FormControl>
+                                    <FormLabel>Plan 5</FormLabel>
                                 </FormItem>
                                 )}
                             />
@@ -1111,14 +1112,14 @@ ${action_result.data.summary}
                                 control={form.control}
                                 name="postgraduateLoan"
                                 render={({ field }) => (
-                                <FormItem className="flex flex-row items-center justify-between">
-                                    <FormLabel>Postgraduate Loan</FormLabel>
+                                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
                                     <FormControl>
-                                    <Switch
+                                    <Checkbox
                                         checked={field.value}
                                         onCheckedChange={field.onChange}
                                     />
                                     </FormControl>
+                                    <FormLabel>Postgraduate Loan</FormLabel>
                                 </FormItem>
                                 )}
                             />
@@ -1513,5 +1514,7 @@ ${action_result.data.summary}
     </FormProvider>
   );
 }
+
+    
 
     
