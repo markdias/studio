@@ -7,6 +7,7 @@ const taxYearData = {
   "2023/24": {
     PERSONAL_ALLOWANCE_DEFAULT: 12570,
     PA_TAPER_THRESHOLD: 100000,
+    BLIND_PERSONS_ALLOWANCE: 2870,
     ENGLAND_WALES_NI_BANDS: {
       basic: { rate: 0.20, threshold: 37700 },
       higher: { rate: 0.40, threshold: 125140 },
@@ -36,6 +37,7 @@ const taxYearData = {
   "2024/25": {
     PERSONAL_ALLOWANCE_DEFAULT: 12570,
     PA_TAPER_THRESHOLD: 100000,
+    BLIND_PERSONS_ALLOWANCE: 3160,
     ENGLAND_WALES_NI_BANDS: {
       basic: { rate: 0.20, threshold: 37700 },
       higher: { rate: 0.40, threshold: 125140 },
@@ -66,6 +68,7 @@ const taxYearData = {
   "2025/26": { 
     PERSONAL_ALLOWANCE_DEFAULT: 12570,
     PA_TAPER_THRESHOLD: 100000,
+    BLIND_PERSONS_ALLOWANCE: 3160, // Assumed to be same as 24/25
     ENGLAND_WALES_NI_BANDS: {
       basic: { rate: 0.20, threshold: 37700 },
       higher: { rate: 0.40, threshold: 125140 },
@@ -125,21 +128,27 @@ export function parseTaxCode(taxCode: string, defaultAllowance: number): number 
 }
 
 
-function calculateAnnualPersonalAllowance(adjustedNetIncome: number, parsedAllowance: number, year: TaxYear): number {
-    const { PA_TAPER_THRESHOLD, PERSONAL_ALLOWANCE_DEFAULT } = getTaxYearData(year);
+function calculateAnnualPersonalAllowance(adjustedNetIncome: number, parsedAllowance: number, isBlind: boolean, year: TaxYear): number {
+    const { PA_TAPER_THRESHOLD, BLIND_PERSONS_ALLOWANCE } = getTaxYearData(year);
 
-    if (parsedAllowance < 0) {
-        return parsedAllowance; // K codes are not tapered
+    let allowance = parsedAllowance;
+    if (isBlind) {
+        allowance += BLIND_PERSONS_ALLOWANCE;
     }
     
+    if (parsedAllowance < 0) {
+        return allowance; // K codes are not tapered, but still add blind allowance.
+    }
+
     if (adjustedNetIncome <= PA_TAPER_THRESHOLD) {
-        return parsedAllowance;
+        return allowance;
     }
 
     const incomeOverThreshold = adjustedNetIncome - PA_TAPER_THRESHOLD;
     const reduction = Math.floor(incomeOverThreshold / 2);
+    const taperedBaseAllowance = Math.max(0, parsedAllowance - reduction);
     
-    return Math.max(0, parsedAllowance - reduction);
+    return taperedBaseAllowance + (isBlind ? BLIND_PERSONS_ALLOWANCE : 0);
 }
 
 
@@ -238,7 +247,7 @@ function calculateStudentLoanForPeriod(grossIncomeForPeriod: number, year: TaxYe
 
 
 export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationResults {
-    const { taxYear, salary, bonus = 0, pensionContribution, region, taxableBenefits = 0, taxCode, bonusPensionContribution = 0 } = input;
+    const { taxYear, salary, bonus = 0, pensionContribution, region, taxableBenefits = 0, taxCode, bonusPensionContribution = 0, blind = false } = input;
     const payRiseMonthIndex = input.hasPayRise ? months.indexOf(input.payRiseMonth) : 12;
     const bonusMonthIndex = bonus > 0 ? months.indexOf(input.bonusMonth) : -1;
 
@@ -259,11 +268,13 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
     const annualPensionFromBonus = bonus * (bonusPensionContribution / 100);
     const annualPension = annualPensionFromSalary + annualPensionFromBonus;
     
-    const totalGrossAnnualIncome = grossSalaryAndBonus + taxableBenefits;
-    const annualAdjustedNet = totalGrossAnnualIncome - annualPension;
+    const grossAnnualForNI = grossSalaryAndBonus; // NI is on gross pay, not including benefits
+    const grossAnnualForTax = grossSalaryAndBonus + taxableBenefits;
     
-    const finalPersonalAllowance = calculateAnnualPersonalAllowance(annualAdjustedNet, parsedCodeAllowance, taxYear);
-    const annualTaxableIncome = Math.max(0, annualAdjustedNet - finalPersonalAllowance);
+    const adjustedNetIncomeForPA = grossAnnualForTax - annualPension; // Used for tapering PA
+    
+    const finalPersonalAllowance = calculateAnnualPersonalAllowance(adjustedNetIncomeForPA, parsedCodeAllowance, blind, taxYear);
+    const annualTaxableIncome = Math.max(0, adjustedNetIncomeForPA - finalPersonalAllowance);
     const totalAnnualTax = calculateTaxOnIncome(annualTaxableIncome, region, taxYear);
 
     // --- Monthly Breakdown using Cumulative Calculation ---
@@ -281,30 +292,29 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
         const pensionFromBonusThisMonth = bonusThisMonth * (bonusPensionContribution / 100);
         const pensionThisMonth = pensionFromSalaryThisMonth + pensionFromBonusThisMonth;
         
-        const grossThisMonth = grossThisMonthFromSalary + bonusThisMonth;
+        const grossThisMonthForNI = grossThisMonthFromSalary + bonusThisMonth;
+        const grossThisMonthForTax = grossThisMonthForNI + (taxableBenefits / 12);
 
-        cumulativeGrossYTD += grossThisMonth;
+        cumulativeGrossYTD += grossThisMonthForTax;
         cumulativePensionYTD += pensionThisMonth;
         
-        const grossYTDForTax = cumulativeGrossYTD + (taxableBenefits / 12 * (i + 1));
-        const adjustedNetYTD = grossYTDForTax - cumulativePensionYTD;
+        const adjustedNetYTD = cumulativeGrossYTD - cumulativePensionYTD;
 
-        const paForYTD = calculateAnnualPersonalAllowance(adjustedNetYTD / (i + 1) * 12, parsedCodeAllowance, taxYear);
+        const paForYTD = calculateAnnualPersonalAllowance(adjustedNetYTD / (i + 1) * 12, parsedCodeAllowance, blind, taxYear);
         const taxableIncomeYTD = Math.max(0, adjustedNetYTD - (paForYTD / 12 * (i + 1)));
 
-        const totalTaxDueYTD = calculateTaxOnIncome(taxableIncomeYTD, region, taxYear);
+        const totalTaxDueYTD = calculateTaxOnIncome(taxableIncomeYTD / (i+1) * 12, region, taxYear) * (i + 1) / 12;
         const taxThisMonth = Math.max(0, totalTaxDueYTD - cumulativeTaxPaidYTD);
         cumulativeTaxPaidYTD += taxThisMonth;
 
-        const nicableIncomeThisMonth = grossThisMonth; // For monthly NIC, pension is not deducted
-        const nicThisMonth = calculateNICForPeriod(nicableIncomeThisMonth, taxYear);
-        const studentLoanThisMonth = calculateStudentLoanForPeriod(grossThisMonth, taxYear, input);
+        const nicThisMonth = calculateNICForPeriod(grossThisMonthForNI, taxYear);
+        const studentLoanThisMonth = calculateStudentLoanForPeriod(grossThisMonthForNI, taxYear, input);
 
-        const takeHomeThisMonth = grossThisMonth - pensionThisMonth - taxThisMonth - nicThisMonth - studentLoanThisMonth;
+        const takeHomeThisMonth = grossThisMonthForNI - pensionThisMonth - taxThisMonth - nicThisMonth - studentLoanThisMonth;
         
         finalMonthlyBreakdown.push({
             month,
-            gross: grossThisMonth,
+            gross: grossThisMonthForNI,
             pension: pensionThisMonth,
             tax: taxThisMonth,
             nic: nicThisMonth,
@@ -320,7 +330,7 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
     const finalAnnualPension = finalMonthlyBreakdown.reduce((acc, month) => acc + month.pension, 0);
     
     return {
-        grossAnnualIncome: totalGrossAnnualIncome,
+        grossAnnualIncome: grossAnnualForNI,
         annualTaxableIncome: annualTaxableIncome,
         annualTakeHome: finalAnnualTakeHome,
         annualTax: finalAnnualTax,
@@ -328,7 +338,7 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
         annualStudentLoan: finalAnnualStudentLoan,
         annualPension: finalAnnualPension,
         personalAllowance: finalPersonalAllowance,
-        effectiveTaxRate: totalGrossAnnualIncome > 0 ? ((finalAnnualTax + finalAnnualNic) / totalGrossAnnualIncome) * 100 : 0,
+        effectiveTaxRate: grossAnnualForNI > 0 ? ((finalAnnualTax + finalAnnualNic) / grossAnnualForNI) * 100 : 0,
         breakdown: [
             { name: 'Take-Home Pay', value: finalAnnualTakeHome, fill: 'hsl(var(--chart-1))' },
             { name: 'Income Tax', value: finalAnnualTax, fill: 'hsl(var(--chart-2))' },

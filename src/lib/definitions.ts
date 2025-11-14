@@ -24,6 +24,7 @@ export const taxCalculatorSchema = z.object({
   region: z.enum(regions).default("England"),
   bonusMonth: z.enum(months).default("April"),
   taxCode: z.string().default("1257L").describe("The user's tax code, e.g., 1257L"),
+  blind: z.boolean().default(false).describe("Whether the user is registered blind"),
   
   // Pay rise fields
   hasPayRise: z.boolean().default(false),

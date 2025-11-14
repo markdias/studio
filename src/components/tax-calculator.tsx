@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertTriangle, Lightbulb, Loader2, CalendarIcon, Baby, Send, Download, Upload, Edit, Save, HelpCircle, GraduationCap } from "lucide-react";
+import { AlertTriangle, Lightbulb, Loader2, CalendarIcon, Baby, Send, Download, Upload, Edit, Save, HelpCircle, GraduationCap, Eye } from "lucide-react";
 import {
   ChartContainer,
   ChartTooltip,
@@ -64,6 +64,7 @@ const initialValues: TaxCalculatorSchema = {
   bonusMonth: "April",
   taxCode: "1257L",
   taxableBenefits: 0,
+  blind: false,
   hasPayRise: false,
   newSalary: 60000,
   payRiseMonth: "April",
@@ -577,6 +578,8 @@ ${actionResult.data.summary}
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm rounded-md border p-2">
                     <div className="text-right text-muted-foreground">Gross Pay:</div>
                     <div>{formatCurrency(res.grossAnnualIncome)}</div>
+                     <div className="text-right text-muted-foreground">Taxable Benefits:</div>
+                    <div>+ {formatCurrency(watchedValues.taxableBenefits ?? 0)}</div>
                     <div className="text-right text-muted-foreground">Pension:</div>
                     <div>- {formatCurrency(res.annualPension)}</div>
                     <div className="text-right text-muted-foreground">Personal Allowance:</div>
@@ -869,19 +872,38 @@ ${actionResult.data.summary}
                             )}
                             />
                         </div>
-                         <FormField
-                            control={form.control}
-                            name="taxableBenefits"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Annual Taxable Benefits (£)</FormLabel>
-                                <FormControl>
-                                    <Input type="number" placeholder="e.g., 2000" {...field} />
-                                </FormControl>
-                                <FormMessage />
+                        <div className="space-y-4 rounded-md border p-4">
+                             <h3 className="font-semibold text-base">Benefits & Allowances</h3>
+                             <FormField
+                                control={form.control}
+                                name="taxableBenefits"
+                                render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Annual Taxable Benefits (£)</FormLabel>
+                                    <FormControl>
+                                        <Input type="number" placeholder="e.g., 2000" {...field} />
+                                    </FormControl>
+                                    <FormDescription className="text-xs">e.g. company car, medical insurance. Affects tax, not NI.</FormDescription>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                             <FormField
+                                control={form.control}
+                                name="blind"
+                                render={({ field }) => (
+                                <FormItem className="flex flex-row items-center justify-between pt-2">
+                                    <FormLabel className="flex items-center gap-2"><Eye className="h-4 w-4" /> Blind Person's Allowance</FormLabel>
+                                    <FormControl>
+                                    <Switch
+                                        checked={field.value}
+                                        onCheckedChange={field.onChange}
+                                    />
+                                    </FormControl>
                                 </FormItem>
-                            )}
-                         />
+                                )}
+                            />
+                        </div>
                     </div>
                      {/* Column 2 */}
                     <div className="space-y-6">
