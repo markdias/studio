@@ -112,9 +112,12 @@ export default function TaxCalculator() {
     setIsGenerating(true);
     setAiTips("");
 
-    const { salary, bonus, pensionContribution } = parsed.data;
-    const grossIncome = salary + (bonus ?? 0);
-    const pensionAmount = grossIncome * (pensionContribution / 100);
+    const { salary, bonus, pensionContribution, isBonusPensionable, pensionableBonusPercentage } = parsed.data;
+    
+    // This calculation must match the main tax logic
+    const pensionableBonus = isBonusPensionable && bonus ? bonus * (pensionableBonusPercentage / 100) : 0;
+    const totalPensionableIncome = salary + pensionableBonus;
+    const pensionAmount = totalPensionableIncome * (pensionContribution / 100);
 
     const actionResult = await generateTaxSavingTipsAction({
       salary: salary,
