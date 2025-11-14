@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertTriangle, Lightbulb, Loader2, CalendarIcon, Baby, Send } from "lucide-react";
+import { AlertTriangle, Lightbulb, Loader2, CalendarIcon, Baby, Send, Download, Upload } from "lucide-react";
 import {
   ChartContainer,
   ChartTooltip,
@@ -86,6 +86,7 @@ export default function TaxCalculator() {
 
   const taxChatContainerRef = useRef<HTMLDivElement>(null);
   const childcareChatContainerRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
 
   const form = useForm<TaxCalculatorSchema>({
@@ -124,6 +125,69 @@ export default function TaxCalculator() {
       childcareChatContainerRef.current.scrollTop = childcareChatContainerRef.current.scrollHeight;
     }
   }, [childcareChatHistory]);
+
+   const handleExport = () => {
+    const values = form.getValues();
+    const jsonString = JSON.stringify(values, null, 2);
+    const blob = new Blob([jsonString], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "tax-figures.json";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast({
+      title: "Data Exported",
+      description: "Your financial details have been saved to tax-figures.json.",
+    });
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result;
+        if (typeof text !== 'string') {
+          throw new Error("File is not valid text.");
+        }
+        const importedData = JSON.parse(text);
+
+        // Basic validation
+        const parsedData = taxCalculatorSchema.safeParse(importedData);
+        if (parsedData.success) {
+          form.reset(parsedData.data);
+          calculate();
+          toast({
+            title: "Data Imported",
+            description: "Your financial details have been loaded from the file.",
+          });
+        } else {
+           throw new Error("File content does not match the required format.");
+        }
+      } catch (error: any) {
+        toast({
+          variant: "destructive",
+          title: "Import Failed",
+          description: error.message || "Could not read or parse the file. Please ensure it's a valid JSON export.",
+        });
+      } finally {
+        // Reset the file input so the same file can be loaded again
+        if(event.target) {
+          event.target.value = '';
+        }
+      }
+    };
+    reader.readAsText(file);
+  };
 
 
   const getFinancialContext = () => {
@@ -314,11 +378,28 @@ ${actionResult.data.summary}
     <FormProvider {...form}>
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
         <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="font-headline">Your Financial Details</CardTitle>
-            <CardDescription>
-              Enter your income details to calculate your take-home pay.
-            </CardDescription>
+          <CardHeader className="flex-row items-center justify-between">
+            <div>
+              <CardTitle className="font-headline">Your Financial Details</CardTitle>
+              <CardDescription>
+                Enter your income details to calculate your take-home pay.
+              </CardDescription>
+            </div>
+             <div className="flex items-center gap-2">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  className="hidden"
+                  accept="application/json"
+                />
+                <Button variant="outline" size="icon" onClick={handleImportClick} title="Import data from JSON">
+                    <Upload className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="icon" onClick={handleExport} title="Export data to JSON">
+                    <Download className="h-4 w-4" />
+                </Button>
+            </div>
           </CardHeader>
           <Form {...form}>
             <form>
@@ -886,3 +967,4 @@ ${actionResult.data.summary}
     </FormProvider>
   );
 }
+
