@@ -43,7 +43,7 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 
 import { taxCalculatorSchema, type TaxCalculatorSchema, type CalculationResults, regions, months, taxYears, type ChildcareAdviceOutput, ChatMessage } from "@/lib/definitions";
-import { calculateTakeHomePay, getTaxYearData } from "@/lib/tax-logic";
+import { calculateTakeHomePay, getTaxYearData, parseTaxCode } from "@/lib/tax-logic";
 import { generateTaxSavingTipsAction, generateChildcareAdviceAction, financialChatAction } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { Slider } from "@/components/ui/slider";
@@ -137,9 +137,11 @@ export default function TaxCalculator() {
 
     if (results) {
       const taxYearData = getTaxYearData(watchedValues.taxYear);
-      const adjustedNetIncome = results.grossAnnualIncome - results.annualPension;
+      const grossIncome = results.grossAnnualIncome - (watchedValues.taxableBenefits ?? 0);
+      const adjustedNetIncome = grossIncome - results.annualPension;
+      
       let newTaxCode = defaultTaxCodes[watchedValues.taxYear];
-
+      
       if (adjustedNetIncome > taxYearData.PA_TAPER_THRESHOLD) {
         if (results.personalAllowance <= 0) {
           newTaxCode = '0T';
@@ -975,13 +977,13 @@ ${actionResult.data.summary}
                     <CardDescription>Analyze costs and ask questions about managing the £100k income threshold.</CardDescription>
                 </CardHeader>
                 <CardContent className="text-sm">
-                   <div ref={childcareChatContainerRef} className="h-64 overflow-y-auto p-4 border rounded-md mb-4 bg-muted/20 space-y-4">
+                   <div ref={childcareChatContainerRef} className="min-h-[16rem] p-4 border rounded-md mb-4 bg-muted/20 space-y-4">
                         {isChildcareChatLoading && childcareChatHistory.length === 0 ? (
                             <div className="flex items-center justify-center h-full">
                                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
                             </div>
                         ) : childcareChatHistory.length === 0 ? (
-                             <div className="flex items-center justify-center h-full">
+                             <div className="flex items-center justify-center h-full min-h-[14rem]">
                                 <div className="text-center text-muted-foreground">
                                     Fill in childcare details and click below to generate advice.
                                 </div>
@@ -1057,6 +1059,8 @@ ${actionResult.data.summary}
     </FormProvider>
   );
 }
+
+    
 
     
 
