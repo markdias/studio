@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertTriangle, Lightbulb, Loader2, CalendarIcon, Baby, Send, Download, Upload } from "lucide-react";
+import { AlertTriangle, Lightbulb, Loader2, CalendarIcon, Baby, Send, Download, Upload, Edit, Save } from "lucide-react";
 import {
   ChartContainer,
   ChartTooltip,
@@ -43,7 +43,7 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 
 import { taxCalculatorSchema, type TaxCalculatorSchema, type CalculationResults, regions, months, taxYears, type ChildcareAdviceOutput, ChatMessage } from "@/lib/definitions";
-import { calculateTakeHomePay } from "@/lib/tax-logic";
+import { calculateTakeHomePay, getTaxYearData } from "@/lib/tax-logic";
 import { generateTaxSavingTipsAction, generateChildcareAdviceAction, financialChatAction } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { Slider } from "@/components/ui/slider";
@@ -90,6 +90,9 @@ export default function TaxCalculator() {
   const [childcareChatInput, setChildcareChatInput] = useState("");
   const [isChildcareChatLoading, setIsChildcareChatLoading] = useState(false);
 
+  const [isTaxCodeEditing, setIsTaxCodeEditing] = useState(false);
+  const [isTaxCodeManuallySet, setIsTaxCodeManuallySet] = useState(false);
+
   const taxChatContainerRef = useRef<HTMLDivElement>(null);
   const childcareChatContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -115,19 +118,43 @@ export default function TaxCalculator() {
 
   useEffect(() => {
     const subscription = form.watch((value, { name }) => {
-        if(name === 'taxYear' && value.taxYear){
+        if(name === 'taxYear' && value.taxYear && !isTaxCodeManuallySet){
             const newTaxCode = defaultTaxCodes[value.taxYear] || "1257L";
-            const currentTaxCode = form.getValues('taxCode');
-            // Only update if the tax code seems to be a default one, not a custom one.
-            if (!currentTaxCode || currentTaxCode.endsWith('L')) {
-               form.setValue('taxCode', newTaxCode, { shouldValidate: true, shouldDirty: true });
-            }
+            form.setValue('taxCode', newTaxCode, { shouldValidate: true });
         }
       calculate();
     });
     calculate();
     return () => subscription.unsubscribe();
-  }, [form]);
+  }, [form, isTaxCodeManuallySet]);
+
+
+   useEffect(() => {
+    if (isTaxCodeManuallySet || isTaxCodeEditing) {
+      return; // Don't auto-update if user is in control
+    }
+
+    if (results) {
+      const taxYearData = getTaxYearData(watchedValues.taxYear);
+      const adjustedNetIncome = results.grossAnnualIncome - results.annualPension;
+      let newTaxCode = defaultTaxCodes[watchedValues.taxYear];
+
+      if (adjustedNetIncome > taxYearData.PA_TAPER_THRESHOLD) {
+        if (results.personalAllowance <= 0) {
+          newTaxCode = '0T';
+        } else {
+          // Round down to nearest 10 and add 'L'
+          const allowanceCode = Math.floor(results.personalAllowance / 10);
+          newTaxCode = `${allowanceCode}L`;
+        }
+      }
+      
+      if(form.getValues('taxCode') !== newTaxCode) {
+         form.setValue('taxCode', newTaxCode, { shouldValidate: true, shouldDirty: true });
+      }
+    }
+  }, [results?.grossAnnualIncome, results?.personalAllowance, watchedValues.taxYear, isTaxCodeManuallySet, isTaxCodeEditing, form]);
+
 
   useEffect(() => {
     if (taxChatContainerRef.current) {
@@ -180,6 +207,7 @@ export default function TaxCalculator() {
         const parsedData = taxCalculatorSchema.safeParse(importedData);
         if (parsedData.success) {
           form.reset(parsedData.data);
+          setIsTaxCodeManuallySet(true); // Assume imported tax code is intentional
           calculate();
           toast({
             title: "Data Imported",
@@ -457,18 +485,56 @@ ${actionResult.data.summary}
                   )}
                 />
                  <FormField
-                  control={form.control}
-                  name="taxCode"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Tax Code</FormLabel>
-                      <FormControl>
-                        <Input type="text" placeholder="e.g., 1257L" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    control={form.control}
+                    name="taxCode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tax Code</FormLabel>
+                        <div className="flex items-center gap-2">
+                          <FormControl>
+                            <Input
+                              type="text"
+                              placeholder="e.g., 1257L"
+                              {...field}
+                              readOnly={!isTaxCodeEditing}
+                              className={!isTaxCodeEditing ? "bg-muted cursor-not-allowed" : ""}
+                            />
+                          </FormControl>
+                           {isTaxCodeEditing ? (
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                size="icon"
+                                onClick={() => {
+                                  setIsTaxCodeEditing(false);
+                                  setIsTaxCodeManuallySet(true);
+                                  calculate();
+                                }}
+                                title="Save Tax Code"
+                              >
+                                <Save className="h-4 w-4" />
+                              </Button>
+                            ) : (
+                               <Button type="button" variant="outline" size="icon" onClick={() => setIsTaxCodeEditing(true)} title="Edit Tax Code">
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            )}
+                        </div>
+                        {isTaxCodeManuallySet && !isTaxCodeEditing && (
+                            <div className="flex items-center justify-between mt-2">
+                                <p className="text-xs text-muted-foreground">Tax code is set manually.</p>
+                                <Button variant="link" size="sm" className="text-xs h-auto p-0" onClick={() => {
+                                    setIsTaxCodeManuallySet(false);
+                                    // Trigger a recalculation with automatic code
+                                    const currentTaxYear = form.getValues('taxYear');
+                                    form.setValue('taxCode', defaultTaxCodes[currentTaxYear], { shouldValidate: true, shouldDirty: true });
+                                }}>Use Automatic</Button>
+                            </div>
+                        )}
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 <FormField
                   control={form.control}
                   name="taxableBenefits"
@@ -990,5 +1056,7 @@ ${actionResult.data.summary}
     </FormProvider>
   );
 }
+
+    
 
     
