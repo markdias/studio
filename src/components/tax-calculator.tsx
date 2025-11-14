@@ -241,6 +241,7 @@ export default function TaxCalculator() {
       numberOfChildren: parsed.data.numberOfChildren,
       daysPerWeekInChildcare: parsed.data.daysPerWeekInChildcare,
       dailyChildcareRate: parsed.data.dailyChildcareRate,
+      taxYear: parsed.data.taxYear,
     });
 
     if (actionResult.success && actionResult.data) {

@@ -96,6 +96,7 @@ export const ChildcareAdviceInputSchema = z.object({
   numberOfChildren: z.number().describe('The number of children the user has in childcare.'),
   daysPerWeekInChildcare: z.number().describe('The number of days per week a single child attends childcare.'),
   dailyChildcareRate: z.number().describe('The daily cost of childcare for a single child.'),
+  taxYear: z.string().describe('The selected tax year, e.g., 2024/25'),
 });
 export type ChildcareAdviceInput = z.infer<typeof ChildcareAdviceInputSchema>;
 
