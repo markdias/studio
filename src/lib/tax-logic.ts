@@ -210,13 +210,15 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
     const finalPersonalAllowance = calculateAnnualPersonalAllowance(annualAdjustedNet, parsedCodeAllowance, taxYear);
     const annualTaxableIncome = Math.max(0, annualAdjustedNet - finalPersonalAllowance);
     
-    // --- 2. Calculate Monthly Breakdown & Correct Tax/NI ---
-    let annualNicTotal = 0;
-    let annualTaxTotal = 0;
-    const finalMonthlyBreakdown: MonthlyResult[] = [];
+    // This is the correct total annual tax based on the final taxable income
+    const totalAnnualTax = calculateTaxOnIncome(annualTaxableIncome, region, taxYear);
 
-    // This is a simplified annual tax calculation for the summary view
-    const annualTax = calculateTaxOnIncome(annualTaxableIncome, region, taxYear);
+    // --- 2. Calculate Monthly Breakdown using a cumulative approach ---
+    let cumulativeGrossYTD = 0;
+    let cumulativePensionYTD = 0;
+    let cumulativeNicYTD = 0;
+    let cumulativeTaxYTD = 0;
+    const finalMonthlyBreakdown: MonthlyResult[] = [];
     
     for (let i = 0; i < 12; i++) {
         const month = months[i];
@@ -228,38 +230,29 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
         const pensionFromBonusThisMonth = bonusThisMonth * (bonusPensionContribution / 100);
         const pensionThisMonth = pensionFromSalaryThisMonth + pensionFromBonusThisMonth;
 
-        // NIC is calculated on gross pay before salary sacrifice for pension
+        // NIC is calculated on a non-cumulative, per-period basis
         const nicThisMonth = calculateNICForPeriod(grossThisMonth, taxYear);
-        
-        // --- Correct Monthly Tax Calculation ---
-        // For tax, we use the income AFTER pension sacrifice
-        const adjustedGrossThisMonth = grossThisMonth - pensionThisMonth;
-        // Annualize this month's earnings to find the correct tax rate
-        const annualizedAdjustedGross = adjustedGrossThisMonth * 12;
-        const annualizedAdjustedNet = annualizedAdjustedGross + taxableBenefits;
-        
-        const tempPersonalAllowance = calculateAnnualPersonalAllowance(annualizedAdjustedNet, parsedCodeAllowance, taxYear);
-        const annualizedTaxableIncome = Math.max(0, annualizedAdjustedNet - tempPersonalAllowance);
-        const estimatedAnnualTaxOnThisRate = calculateTaxOnIncome(annualizedTaxableIncome, region, taxYear);
-        
-        let taxThisMonth = estimatedAnnualTaxOnThisRate / 12;
-        
-        // If taxable income for the month is zero, tax must be zero.
-        if (adjustedGrossThisMonth <= (finalPersonalAllowance/12)) {
-            taxThisMonth = 0;
-        }
+        cumulativeNicYTD += nicThisMonth;
 
-        // Add to annual totals
-        annualNicTotal += nicThisMonth;
-        annualTaxTotal += taxThisMonth;
+        cumulativeGrossYTD += grossThisMonth;
+        cumulativePensionYTD += pensionThisMonth;
+
+        // Calculate tax on a cumulative basis
+        const adjustedNetYTD = cumulativeGrossYTD + taxableBenefits - cumulativePensionYTD;
+        const personalAllowanceYTD = calculateAnnualPersonalAllowance(adjustedNetYTD, parsedCodeAllowance, taxYear);
+        const taxableIncomeYTD = Math.max(0, adjustedNetYTD - personalAllowanceYTD);
+        const totalTaxDueYTD = calculateTaxOnIncome(taxableIncomeYTD, region, taxYear);
         
+        const taxThisMonth = totalTaxDueYTD - cumulativeTaxYTD;
+        cumulativeTaxYTD += taxThisMonth;
+
         const takeHomeThisMonth = grossThisMonth - pensionThisMonth - taxThisMonth - nicThisMonth;
         
         finalMonthlyBreakdown.push({
             month,
             gross: grossThisMonth,
             pension: pensionThisMonth,
-            tax: taxThisMonth,
+            tax: Math.max(0, taxThisMonth),
             nic: nicThisMonth,
             takeHome: takeHomeThisMonth,
         });
@@ -267,7 +260,8 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
 
     const finalAnnualTakeHome = finalMonthlyBreakdown.reduce((acc, month) => acc + month.takeHome, 0);
     const finalAnnualTax = finalMonthlyBreakdown.reduce((acc, month) => acc + month.tax, 0);
-    
+    const finalAnnualNic = finalMonthlyBreakdown.reduce((acc, month) => acc + month.nic, 0);
+
     const grossAnnualIncome = annualGrossIncomeWithBonus + taxableBenefits;
     
     return {
@@ -275,18 +269,16 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
         annualTaxableIncome: annualTaxableIncome,
         annualTakeHome: finalAnnualTakeHome,
         annualTax: finalAnnualTax,
-        annualNic: annualNicTotal,
+        annualNic: finalAnnualNic,
         annualPension: annualPension,
         personalAllowance: finalPersonalAllowance,
-        effectiveTaxRate: grossAnnualIncome > 0 ? ((finalAnnualTax + annualNicTotal) / grossAnnualIncome) * 100 : 0,
+        effectiveTaxRate: grossAnnualIncome > 0 ? ((finalAnnualTax + finalAnnualNic) / grossAnnualIncome) * 100 : 0,
         breakdown: [
             { name: 'Take-Home Pay', value: finalAnnualTakeHome, fill: 'hsl(var(--chart-1))' },
             { name: 'Income Tax', value: finalAnnualTax, fill: 'hsl(var(--chart-2))' },
-            { name: 'National Insurance', value: annualNicTotal, fill: 'hsl(var(--chart-3))' },
+            { name: 'National Insurance', value: finalAnnualNic, fill: 'hsl(var(--chart-3))' },
             { name: 'Pension', value: annualPension, fill: 'hsl(var(--chart-4))' },
         ],
         monthlyBreakdown: finalMonthlyBreakdown,
     };
 }
-
-    
