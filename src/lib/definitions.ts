@@ -35,6 +35,11 @@ export const taxCalculatorSchema = z.object({
   daysPerWeekInChildcare: z.coerce.number().min(0).max(7).optional().default(0),
   dailyChildcareRate: z.coerce.number().min(0).optional().default(0),
 
+  // Pension Comparison
+  enablePensionComparison: z.boolean().optional().default(false),
+  adjustedPensionContribution: z.coerce.number().min(0, "Pension contribution cannot be negative.").max(100, "Pension contribution cannot exceed 100%.").optional().default(10),
+
+
 }).refine(data => !data.hasPayRise || (data.newSalary !== undefined && data.newSalary > data.salary), {
   message: "New salary must be greater than the current salary.",
   path: ["newSalary"],

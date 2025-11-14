@@ -70,6 +70,9 @@ const initialValues: TaxCalculatorSchema = {
   numberOfChildren: 0,
   daysPerWeekInChildcare: 0,
   dailyChildcareRate: 0,
+  // Pension Comparison
+  enablePensionComparison: false,
+  adjustedPensionContribution: 10,
 };
 
 const defaultTaxCodes: Record<string, string> = {
@@ -81,6 +84,7 @@ const defaultTaxCodes: Record<string, string> = {
 export default function TaxCalculator() {
   const { toast } = useToast();
   const [results, setResults] = useState<CalculationResults | null>(null);
+  const [adjustedResults, setAdjustedResults] = useState<CalculationResults | null>(null);
   
   const [taxChatHistory, setTaxChatHistory] = useState<ChatMessage[]>([]);
   const [taxChatInput, setTaxChatInput] = useState("");
@@ -112,8 +116,17 @@ export default function TaxCalculator() {
     const parsed = taxCalculatorSchema.safeParse(values);
     if (parsed.success) {
       setResults(calculateTakeHomePay(parsed.data));
+      if (parsed.data.enablePensionComparison) {
+        setAdjustedResults(calculateTakeHomePay({
+          ...parsed.data,
+          pensionContribution: parsed.data.adjustedPensionContribution ?? 0,
+        }));
+      } else {
+        setAdjustedResults(null);
+      }
     } else {
       setResults(null);
+      setAdjustedResults(null);
       console.log(parsed.error);
     }
   }
@@ -412,20 +425,157 @@ ${actionResult.data.summary}
   }
   
   
-  const chartConfig = useMemo(() => {
-    if (!results) return {};
-    return results.breakdown.reduce((acc, item) => {
-        acc[item.name] = { label: item.name, color: item.fill };
-        return acc;
-    }, {} as any)
-  }, [results]);
-
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(value);
 
   const renderFormattedText = (text: string) => {
     return text.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>');
   };
+
+  const renderResultsPanel = (res: CalculationResults | null, title: string) => {
+    const chartConfig = res?.breakdown.reduce((acc, item) => {
+        acc[item.name] = { label: item.name, color: item.fill };
+        return acc;
+    }, {} as any) || {};
+
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="font-headline">{title}</CardTitle>
+          <CardDescription>An estimate of your annual take-home pay for tax year {watchedValues.taxYear}.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {res ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground">Annual Take-Home</p>
+                  <p className="text-4xl font-bold text-primary">{formatCurrency(res.annualTakeHome)}</p>
+                </div>
+                <Separator />
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="text-right">
+                    <p className="text-muted-foreground">Gross Pay</p>
+                    <p className="text-muted-foreground">Take-Home</p>
+                    <p className="text-muted-foreground">Income Tax</p>
+                    <p className="text-muted-foreground">Nat. Ins.</p>
+                    <p className="text-muted-foreground">Pension</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold">{formatCurrency(res.grossAnnualIncome)}</p>
+                    <p className="font-semibold">{formatCurrency(res.annualTakeHome)}</p>
+                    <p className="font-semibold">{formatCurrency(res.annualTax)}</p>
+                    <p className="font-semibold">{formatCurrency(res.annualNic)}</p>
+                    <p className="font-semibold">{formatCurrency(res.annualPension)}</p>
+                  </div>
+                </div>
+                <Separator />
+                <div className="space-y-2">
+                  <h4 className="font-semibold">Taxable Income Breakdown</h4>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm rounded-md border p-2">
+                    <div className="text-right text-muted-foreground">Gross Pay:</div>
+                    <div>{formatCurrency(res.grossAnnualIncome)}</div>
+                    <div className="text-right text-muted-foreground">Taxable Benefits:</div>
+                    <div>+ {formatCurrency(watchedValues.taxableBenefits ?? 0)}</div>
+                    <div className="text-right text-muted-foreground">Pension:</div>
+                    <div>- {formatCurrency(res.annualPension)}</div>
+                    <div className="text-right text-muted-foreground">Personal Allowance:</div>
+                    <div>- {formatCurrency(res.personalAllowance)}</div>
+                    <div className="col-span-2"><Separator className="my-1"/></div>
+                    <div className="text-right font-bold">Taxable Income:</div>
+                    <div className="font-bold">{formatCurrency(res.annualTaxableIncome)}</div>
+                  </div>
+                </div>
+              </div>
+              <div className="min-h-[250px]">
+                <ChartContainer config={chartConfig} className="w-full h-full">
+                  <PieChart>
+                    <ChartTooltip content={<ChartTooltipContent nameKey="name" hideLabel />} />
+                    <Pie data={res.breakdown} dataKey="value" nameKey="name" innerRadius={60} strokeWidth={5}>
+                      {res.breakdown.map((entry) => (
+                        <Cell key={`cell-${entry.name}`} fill={entry.fill} />
+                      ))}
+                    </Pie>
+                    <ChartLegend content={<ChartLegendContent />} />
+                  </PieChart>
+                </ChartContainer>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-10 text-muted-foreground">
+              Enter your details to see your results.
+            </div>
+          )}
+        </CardContent>
+        {res && (res.grossAnnualIncome > 50000 || res.grossAnnualIncome > 100000) && (
+          <CardFooter className="flex-col items-start gap-4">
+            {res.grossAnnualIncome > 100000 && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>£100,000 Threshold</AlertTitle>
+                <AlertDescription>
+                  Your personal tax allowance is reduced as your income is over £100,000. This results in an effective marginal tax rate of ~60% on income between £100,000 and £125,140.
+                </AlertDescription>
+              </Alert>
+            )}
+            {res.grossAnnualIncome > 50000 && res.grossAnnualIncome < 100000 && (
+              <Alert>
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>£50,000 Threshold</AlertTitle>
+                <AlertDescription>
+                  You are in a higher tax bracket and may be subject to the High Income Child Benefit Charge if applicable.
+                </AlertDescription>
+              </Alert>
+            )}
+          </CardFooter>
+        )}
+      </Card>
+    );
+  };
+
+  const renderMonthlyBreakdownPanel = (res: CalculationResults | null, title: string) => {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="font-headline flex items-center gap-2"><CalendarIcon className="text-primary h-6 w-6" />{title}</CardTitle>
+          <CardDescription>A month-by-month view of your estimated earnings and deductions.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {res ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="font-semibold">Month</TableHead>
+                  <TableHead className="text-right font-semibold">Gross Pay</TableHead>
+                  <TableHead className="text-right font-semibold">Pension</TableHead>
+                  <TableHead className="text-right font-semibold">Income Tax</TableHead>
+                  <TableHead className="text-right font-semibold">Nat. Ins.</TableHead>
+                  <TableHead className="text-right font-semibold text-primary">Take-Home</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {res.monthlyBreakdown.map((row) => (
+                  <TableRow key={row.month} className={row.gross > (res.grossAnnualIncome / 12) * 1.05 ? "bg-secondary hover:bg-secondary/80 font-semibold" : ""}>
+                    <TableCell>{row.month}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(row.gross)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(row.pension)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(row.tax)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(row.nic)}</TableCell>
+                    <TableCell className="text-right text-primary font-bold">{formatCurrency(row.takeHome)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="text-center py-10 text-muted-foreground">
+              Results will be shown here.
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
+
 
   return (
     <FormProvider {...form}>
@@ -754,49 +904,89 @@ ${actionResult.data.summary}
                     {/* Column 4 */}
                     <div className="space-y-6">
                         <div className="space-y-4 rounded-md border p-4 h-full">
-                        <h3 className="font-semibold text-base">Childcare Details</h3>
-                        <FormField
-                            control={form.control}
-                            name="numberOfChildren"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Number of Children</FormLabel>
-                                <FormControl>
-                                    <Input type="number" placeholder="e.g., 1" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                            />
+                            <h3 className="font-semibold text-base">Childcare Details</h3>
                             <FormField
-                            control={form.control}
-                            name="daysPerWeekInChildcare"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Days per Week (per child)</FormLabel>
-                                <FormControl>
-                                    <Input type="number" placeholder="e.g., 3" {...field} disabled={(watchedValues.numberOfChildren ?? 0) <= 0} />
-                                </FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                            />
-                            <FormField
-                            control={form.control}
-                            name="dailyChildcareRate"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Daily Rate (£ per child)</FormLabel>
-                                <FormControl>
-                                    <Input type="number" placeholder="e.g., 60" {...field} disabled={(watchedValues.numberOfChildren ?? 0) <= 0} />
-                                </FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                            />
+                                control={form.control}
+                                name="numberOfChildren"
+                                render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Number of Children</FormLabel>
+                                    <FormControl>
+                                        <Input type="number" placeholder="e.g., 1" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                                />
+                                <FormField
+                                control={form.control}
+                                name="daysPerWeekInChildcare"
+                                render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Days per Week (per child)</FormLabel>
+                                    <FormControl>
+                                        <Input type="number" placeholder="e.g., 3" {...field} disabled={(watchedValues.numberOfChildren ?? 0) <= 0} />
+                                    </FormControl>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                                />
+                                <FormField
+                                control={form.control}
+                                name="dailyChildcareRate"
+                                render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Daily Rate (£ per child)</FormLabel>
+                                    <FormControl>
+                                        <Input type="number" placeholder="e.g., 60" {...field} disabled={(watchedValues.numberOfChildren ?? 0) <= 0} />
+                                    </FormControl>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                                />
                         </div>
                     </div>
                 </div>
+                 <Separator className="my-6" />
+                 <div className="space-y-4 rounded-md border p-4 max-w-md">
+                    <h3 className="font-semibold text-base">Pension Comparison</h3>
+                    <FormField
+                        control={form.control}
+                        name="enablePensionComparison"
+                        render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between">
+                            <FormLabel>Enable Pension Comparison</FormLabel>
+                            <FormControl>
+                            <Switch
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                            />
+                            </FormControl>
+                        </FormItem>
+                        )}
+                    />
+                    {watchedValues.enablePensionComparison && (
+                        <FormField
+                            control={form.control}
+                            name="adjustedPensionContribution"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Adjusted Contribution ({field.value}%)</FormLabel>
+                                <FormControl>
+                                    <Slider
+                                    min={0}
+                                    max={100}
+                                    step={1}
+                                    value={[field.value ?? 0]}
+                                    onValueChange={(value) => field.onChange(value[0])}
+                                    />
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    )}
+                 </div>
               </CardContent>
             </form>
           </Form>
@@ -804,137 +994,39 @@ ${actionResult.data.summary}
 
         <div className="space-y-8">
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-              <Card>
-                  <CardHeader>
-                      <CardTitle className="font-headline">Your Annual Results</CardTitle>
-                      <CardDescription>An estimate of your annual take-home pay for tax year {watchedValues.taxYear}.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                      {results ? (
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                              <div className="space-y-4">
-                                  <div className="text-center">
-                                      <p className="text-sm text-muted-foreground">Annual Take-Home</p>
-                                      <p className="text-4xl font-bold text-primary">{formatCurrency(results.annualTakeHome)}</p>
-                                  </div>
-                                  <Separator />
-                                  <div className="grid grid-cols-2 gap-4 text-sm">
-                                      <div className="text-right">
-                                          <p className="text-muted-foreground">Gross Pay</p>
-                                          <p className="text-muted-foreground">Take-Home</p>
-                                          <p className="text-muted-foreground">Income Tax</p>
-                                          <p className="text-muted-foreground">Nat. Ins.</p>
-                                          <p className="text-muted-foreground">Pension</p>
-                                      </div>
-                                      <div>
-                                          <p className="font-semibold">{formatCurrency(results.grossAnnualIncome)}</p>
-                                          <p className="font-semibold">{formatCurrency(results.annualTakeHome)}</p>
-                                          <p className="font-semibold">{formatCurrency(results.annualTax)}</p>
-                                          <p className="font-semibold">{formatCurrency(results.annualNic)}</p>
-                                          <p className="font-semibold">{formatCurrency(results.annualPension)}</p>
-                                      </div>
-                                  </div>
-                                  <Separator />
-                                  <div className="space-y-2">
-                                    <h4 className="font-semibold">Taxable Income Breakdown</h4>
-                                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm rounded-md border p-2">
-                                        <div className="text-right text-muted-foreground">Gross Pay:</div>
-                                        <div>{formatCurrency(results.grossAnnualIncome)}</div>
+                {watchedValues.enablePensionComparison ? (
+                    <Tabs defaultValue="current">
+                        <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="current">Current Results</TabsTrigger>
+                            <TabsTrigger value="adjusted">Adjusted Results ({watchedValues.adjustedPensionContribution}%)</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="current">
+                            {renderResultsPanel(results, "Your Annual Results (Current)")}
+                        </TabsContent>
+                        <TabsContent value="adjusted">
+                            {renderResultsPanel(adjustedResults, `Your Annual Results (Adjusted ${watchedValues.adjustedPensionContribution}%)`)}
+                        </TabsContent>
+                    </Tabs>
+                ) : (
+                    renderResultsPanel(results, "Your Annual Results")
+                )}
 
-                                        <div className="text-right text-muted-foreground">Taxable Benefits:</div>
-                                        <div>+ {formatCurrency(watchedValues.taxableBenefits ?? 0)}</div>
-
-                                        <div className="text-right text-muted-foreground">Pension:</div>
-                                        <div>- {formatCurrency(results.annualPension)}</div>
-
-                                        <div className="text-right text-muted-foreground">Personal Allowance:</div>
-                                        <div>- {formatCurrency(results.personalAllowance)}</div>
-                                        
-                                        <div className="col-span-2"><Separator className="my-1"/></div>
-                                        
-                                        <div className="text-right font-bold">Taxable Income:</div>
-                                        <div className="font-bold">{formatCurrency(results.annualTaxableIncome)}</div>
-                                    </div>
-                                  </div>
-                              </div>
-                              <div className="min-h-[250px]">
-                                  <ChartContainer config={chartConfig} className="w-full h-full">
-                                      <PieChart>
-                                          <ChartTooltip content={<ChartTooltipContent nameKey="name" hideLabel />} />
-                                          <Pie data={results.breakdown} dataKey="value" nameKey="name" innerRadius={60} strokeWidth={5}>
-                                              {results.breakdown.map((entry) => (
-                                                  <Cell key={`cell-${entry.name}`} fill={entry.fill} />
-                                              ))}
-                                          </Pie>
-                                          <ChartLegend content={<ChartLegendContent />} />
-                                      </PieChart>
-                                  </ChartContainer>
-                              </div>
-                          </div>
-                      ) : (
-                          <div className="text-center py-10 text-muted-foreground">
-                              Enter your details to see your results.
-                          </div>
-                      )}
-                  </CardContent>
-                  {results && (results.grossAnnualIncome > 50000 || results.grossAnnualIncome > 100000) && (
-                      <CardFooter className="flex-col items-start gap-4">
-                          {results.grossAnnualIncome > 100000 && (
-                              <Alert variant="destructive">
-                                  <AlertTriangle className="h-4 w-4" />
-                                  <AlertTitle>£100,000 Threshold</AlertTitle>
-                                  <AlertDescription>
-                                      Your personal tax allowance is reduced as your income is over £100,000. This results in an effective marginal tax rate of ~60% on income between £100,000 and £125,140.
-                                  </AlertDescription>
-                              </Alert>
-                          )}
-                          {results.grossAnnualIncome > 50000 && results.grossAnnualIncome < 100000 && (
-                              <Alert>
-                                  <AlertTriangle className="h-4 w-4" />
-                                  <AlertTitle>£50,000 Threshold</AlertTitle>
-                                  <AlertDescription>
-                                      You are in a higher tax bracket and may be subject to the High Income Child Benefit Charge if applicable.
-                                  </AlertDescription>
-                              </Alert>
-                          )}
-                      </CardFooter>
-                  )}
-              </Card>
-
-              {results && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="font-headline flex items-center gap-2"><CalendarIcon className="text-primary h-6 w-6" />Monthly Breakdown</CardTitle>
-                    <CardDescription>A month-by-month view of your estimated earnings and deductions.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="font-semibold">Month</TableHead>
-                          <TableHead className="text-right font-semibold">Gross Pay</TableHead>
-                          <TableHead className="text-right font-semibold">Pension</TableHead>
-                          <TableHead className="text-right font-semibold">Income Tax</TableHead>
-                          <TableHead className="text-right font-semibold">Nat. Ins.</TableHead>
-                          <TableHead className="text-right font-semibold text-primary">Take-Home</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {results.monthlyBreakdown.map((row) => (
-                          <TableRow key={row.month} className={row.gross > (results.grossAnnualIncome / 12) * 1.05 ? "bg-secondary hover:bg-secondary/80 font-semibold" : ""}>
-                            <TableCell>{row.month}</TableCell>
-                            <TableCell className="text-right">{formatCurrency(row.gross)}</TableCell>
-                            <TableCell className="text-right">{formatCurrency(row.pension)}</TableCell>
-                            <TableCell className="text-right">{formatCurrency(row.tax)}</TableCell>
-                            <TableCell className="text-right">{formatCurrency(row.nic)}</TableCell>
-                            <TableCell className="text-right text-primary font-bold">{formatCurrency(row.takeHome)}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
-              )}
+                {watchedValues.enablePensionComparison ? (
+                     <Tabs defaultValue="current">
+                        <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="current">Current Breakdown</TabsTrigger>
+                            <TabsTrigger value="adjusted">Adjusted Breakdown ({watchedValues.adjustedPensionContribution}%)</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="current">
+                           {renderMonthlyBreakdownPanel(results, "Monthly Breakdown (Current)")}
+                        </TabsContent>
+                        <TabsContent value="adjusted">
+                           {renderMonthlyBreakdownPanel(adjustedResults, `Monthly Breakdown (Adjusted ${watchedValues.adjustedPensionContribution}%)`)}
+                        </TabsContent>
+                    </Tabs>
+                ) : (
+                    results && renderMonthlyBreakdownPanel(results, "Monthly Breakdown")
+                )}
             </div>
 
             <Tabs defaultValue="tax-advisor">
@@ -1012,7 +1104,7 @@ ${actionResult.data.summary}
                         <CardDescription>Analyze costs and ask questions about managing the £100k income threshold.</CardDescription>
                     </CardHeader>
                     <CardContent className="text-sm">
-                      <div ref={childcareChatContainerRef} className="p-4 border rounded-md mb-4 bg-muted/20 space-y-4">
+                      <div ref={childcareChatContainerRef} className="h-auto p-4 border rounded-md mb-4 bg-muted/20 space-y-4">
                             {isChildcareChatLoading && childcareChatHistory.length === 0 ? (
                                 <div className="flex items-center justify-center h-full">
                                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -1095,5 +1187,3 @@ ${actionResult.data.summary}
     </FormProvider>
   );
 }
-
-    
