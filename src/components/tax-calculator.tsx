@@ -435,9 +435,9 @@ ${actionResult.data.summary}
 
   return (
     <FormProvider {...form}>
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
-        <Card className="lg:col-span-2">
-          <CardHeader className="flex-row items-center justify-between">
+      <div className="space-y-8">
+        <Card>
+          <CardHeader className="flex-row items-start justify-between">
             <div>
               <CardTitle className="font-headline">Your Financial Details</CardTitle>
               <CardDescription>
@@ -462,334 +462,353 @@ ${actionResult.data.summary}
           </CardHeader>
           <Form {...form}>
             <form>
-              <CardContent className="space-y-6">
-                 <FormField
-                  control={form.control}
-                  name="taxYear"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Tax Year</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select tax year" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {taxYears.map((year) => (
-                            <SelectItem key={year} value={year}>
-                              {year}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="salary"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Annual Salary (£)</FormLabel>
-                      <FormControl>
-                        <Input type="number" placeholder="e.g., 50000" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                 <FormField
-                    control={form.control}
-                    name="taxCode"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Tax Code</FormLabel>
-                        <div className="flex items-center gap-2">
-                          <FormControl>
-                            <Input
-                              type="text"
-                              placeholder="e.g., 1257L"
-                              {...field}
-                              readOnly={!isTaxCodeEditing}
-                              className={!isTaxCodeEditing ? "bg-muted cursor-not-allowed" : ""}
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-6">
+                    {/* Column 1 */}
+                    <div className="space-y-6">
+                        <FormField
+                            control={form.control}
+                            name="taxYear"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Tax Year</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select tax year" />
+                                    </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                    {taxYears.map((year) => (
+                                        <SelectItem key={year} value={year}>
+                                        {year}
+                                        </SelectItem>
+                                    ))}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="region"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>UK Region</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select your region" />
+                                    </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                    {regions.map((region) => (
+                                        <SelectItem key={region} value={region}>
+                                        {region}
+                                        </SelectItem>
+                                    ))}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="salary"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Annual Salary (£)</FormLabel>
+                                <FormControl>
+                                    <Input type="number" placeholder="e.g., 50000" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </div>
+                     {/* Column 2 */}
+                    <div className="space-y-6">
+                         <FormField
+                            control={form.control}
+                            name="taxCode"
+                            render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Tax Code</FormLabel>
+                                <div className="flex items-center gap-2">
+                                <FormControl>
+                                    <Input
+                                    type="text"
+                                    placeholder="e.g., 1257L"
+                                    {...field}
+                                    readOnly={!isTaxCodeEditing}
+                                    className={!isTaxCodeEditing ? "bg-muted cursor-not-allowed" : ""}
+                                    />
+                                </FormControl>
+                                {isTaxCodeEditing ? (
+                                    <Button
+                                        type="button"
+                                        variant="secondary"
+                                        size="icon"
+                                        onClick={() => {
+                                        setIsTaxCodeEditing(false);
+                                        setIsTaxCodeManuallySet(true);
+                                        calculate();
+                                        }}
+                                        title="Save Tax Code"
+                                    >
+                                        <Save className="h-4 w-4" />
+                                    </Button>
+                                    ) : (
+                                    <Button type="button" variant="outline" size="icon" onClick={() => setIsTaxCodeEditing(true)} title="Edit Tax Code">
+                                        <Edit className="h-4 w-4" />
+                                    </Button>
+                                    )}
+                                </div>
+                                {isTaxCodeManuallySet && !isTaxCodeEditing && (
+                                    <div className="flex items-center justify-between mt-2">
+                                        <p className="text-xs text-muted-foreground">Tax code is set manually.</p>
+                                        <Button variant="link" size="sm" className="text-xs h-auto p-0" onClick={() => {
+                                            setIsTaxCodeManuallySet(false);
+                                            const currentTaxYear = form.getValues('taxYear');
+                                            form.setValue('taxCode', defaultTaxCodes[currentTaxYear], { shouldValidate: true, shouldDirty: true });
+                                        }}>Use Automatic</Button>
+                                    </div>
+                                )}
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
+                         <FormField
+                            control={form.control}
+                            name="taxableBenefits"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Annual Taxable Benefits (£)</FormLabel>
+                                <FormControl>
+                                    <Input type="number" placeholder="e.g., 2000" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                         />
+                        <div className="space-y-4 rounded-md border p-4">
+                            <h3 className="font-semibold text-base">Pension</h3>
+                             <FormField
+                                control={form.control}
+                                name="pensionContribution"
+                                render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Contribution ({field.value}%)</FormLabel>
+                                    <FormControl>
+                                        <Slider
+                                        min={0}
+                                        max={100}
+                                        step={1}
+                                        value={[field.value ?? 0]}
+                                        onValueChange={(value) => field.onChange(value[0])}
+                                        />
+                                    </FormControl>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
                             />
-                          </FormControl>
-                           {isTaxCodeEditing ? (
-                              <Button
-                                type="button"
-                                variant="secondary"
-                                size="icon"
-                                onClick={() => {
-                                  setIsTaxCodeEditing(false);
-                                  setIsTaxCodeManuallySet(true);
-                                  calculate();
-                                }}
-                                title="Save Tax Code"
-                              >
-                                <Save className="h-4 w-4" />
-                              </Button>
-                            ) : (
-                               <Button type="button" variant="outline" size="icon" onClick={() => setIsTaxCodeEditing(true)} title="Edit Tax Code">
-                                <Edit className="h-4 w-4" />
-                              </Button>
+                            <FormField
+                                control={form.control}
+                                name="isBonusPensionable"
+                                render={({ field }) => (
+                                <FormItem className="flex flex-row items-center justify-between">
+                                    <FormLabel>Bonus is Pensionable</FormLabel>
+                                    <FormControl>
+                                    <Switch
+                                        checked={field.value}
+                                        onCheckedChange={field.onChange}
+                                        disabled={(watchedValues.bonus ?? 0) <= 0}
+                                    />
+                                    </FormControl>
+                                </FormItem>
+                                )}
+                            />
+                            {watchedValues.isBonusPensionable && (watchedValues.bonus ?? 0) > 0 && (
+                                <FormField
+                                    control={form.control}
+                                    name="pensionableBonusPercentage"
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Pensionable Portion ({field.value}%)</FormLabel>
+                                        <FormControl>
+                                        <Slider
+                                            min={0}
+                                            max={100}
+                                            step={1}
+                                            value={[field.value ?? 100]}
+                                            onValueChange={(value) => field.onChange(value[0])}
+                                        />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
                             )}
                         </div>
-                        {isTaxCodeManuallySet && !isTaxCodeEditing && (
-                            <div className="flex items-center justify-between mt-2">
-                                <p className="text-xs text-muted-foreground">Tax code is set manually.</p>
-                                <Button variant="link" size="sm" className="text-xs h-auto p-0" onClick={() => {
-                                    setIsTaxCodeManuallySet(false);
-                                    // Trigger a recalculation with automatic code
-                                    const currentTaxYear = form.getValues('taxYear');
-                                    form.setValue('taxCode', defaultTaxCodes[currentTaxYear], { shouldValidate: true, shouldDirty: true });
-                                }}>Use Automatic</Button>
-                            </div>
-                        )}
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                <FormField
-                  control={form.control}
-                  name="taxableBenefits"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Annual Taxable Benefits (£)</FormLabel>
-                      <FormControl>
-                        <Input type="number" placeholder="e.g., 2000" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="space-y-4 rounded-md border p-4">
-                  <FormField
-                    control={form.control}
-                    name="hasPayRise"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between">
-                        <FormLabel>Have a pay rise?</FormLabel>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                  {watchedValues.hasPayRise && (
-                    <>
-                    <FormField
-                      control={form.control}
-                      name="newSalary"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>New Annual Salary (£)</FormLabel>
-                          <FormControl>
-                            <Input type="number" placeholder="e.g., 60000" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="payRiseMonth"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Pay Rise Effective Month</FormLabel>
-                           <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select month" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {months.map((month) => (
-                                <SelectItem key={month} value={month}>
-                                  {month}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    </>
-                  )}
-                </div>
-                <FormField
-                  control={form.control}
-                  name="bonus"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Annual Bonus (£)</FormLabel>
-                      <FormControl>
-                        <Input type="number" placeholder="e.g., 5000" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                 <FormField
-                  control={form.control}
-                  name="bonusMonth"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Bonus Month</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={(watchedValues.bonus ?? 0) <= 0}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select bonus month" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {months.map((month) => (
-                            <SelectItem key={month} value={month}>
-                              {month}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="pensionContribution"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Your Pension Contribution ({field.value}%)</FormLabel>
-                      <FormControl>
-                        <Slider
-                          min={0}
-                          max={100}
-                          step={1}
-                          value={[field.value ?? 0]}
-                          onValueChange={(value) => field.onChange(value[0])}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                 <div className="space-y-4 rounded-md border p-4">
-                  <FormField
-                    control={form.control}
-                    name="isBonusPensionable"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between">
-                        <FormLabel>Bonus is Pensionable</FormLabel>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                            disabled={(watchedValues.bonus ?? 0) <= 0}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                   {watchedValues.isBonusPensionable && (watchedValues.bonus ?? 0) > 0 && (
-                      <FormField
-                        control={form.control}
-                        name="pensionableBonusPercentage"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Pensionable Portion of Bonus ({field.value}%)</FormLabel>
-                            <FormControl>
-                              <Slider
-                                min={0}
-                                max={100}
-                                step={1}
-                                value={[field.value ?? 100]}
-                                onValueChange={(value) => field.onChange(value[0])}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    )}
-                </div>
-                <FormField
-                  control={form.control}
-                  name="region"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>UK Region</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select your region" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {regions.map((region) => (
-                            <SelectItem key={region} value={region}>
-                              {region}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
 
-                <div className="space-y-4 rounded-md border p-4">
-                  <h3 className="font-semibold text-base">Childcare Details</h3>
-                   <FormField
-                      control={form.control}
-                      name="numberOfChildren"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Number of Children in Childcare</FormLabel>
-                          <FormControl>
-                            <Input type="number" placeholder="e.g., 1" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="daysPerWeekInChildcare"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Days per Week (per child)</FormLabel>
-                          <FormControl>
-                            <Input type="number" placeholder="e.g., 3" {...field} disabled={(watchedValues.numberOfChildren ?? 0) <= 0} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="dailyChildcareRate"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Daily Childcare Rate (£)</FormLabel>
-                          <FormControl>
-                            <Input type="number" placeholder="e.g., 60" {...field} disabled={(watchedValues.numberOfChildren ?? 0) <= 0} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    </div>
+                    {/* Column 3 */}
+                    <div className="space-y-6">
+                        <div className="space-y-4 rounded-md border p-4">
+                            <h3 className="font-semibold text-base">Bonus</h3>
+                            <FormField
+                            control={form.control}
+                            name="bonus"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Annual Bonus (£)</FormLabel>
+                                <FormControl>
+                                    <Input type="number" placeholder="e.g., 5000" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                            />
+                            <FormField
+                            control={form.control}
+                            name="bonusMonth"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Bonus Month</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={(watchedValues.bonus ?? 0) <= 0}>
+                                    <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select bonus month" />
+                                    </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                    {months.map((month) => (
+                                        <SelectItem key={month} value={month}>
+                                        {month}
+                                        </SelectItem>
+                                    ))}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                            />
+                        </div>
+                         <div className="space-y-4 rounded-md border p-4">
+                            <h3 className="font-semibold text-base">Pay Rise</h3>
+                            <FormField
+                                control={form.control}
+                                name="hasPayRise"
+                                render={({ field }) => (
+                                <FormItem className="flex flex-row items-center justify-between">
+                                    <FormLabel>Have a pay rise?</FormLabel>
+                                    <FormControl>
+                                    <Switch
+                                        checked={field.value}
+                                        onCheckedChange={field.onChange}
+                                    />
+                                    </FormControl>
+                                </FormItem>
+                                )}
+                            />
+                            {watchedValues.hasPayRise && (
+                                <>
+                                <FormField
+                                control={form.control}
+                                name="newSalary"
+                                render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>New Annual Salary (£)</FormLabel>
+                                    <FormControl>
+                                        <Input type="number" placeholder="e.g., 60000" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                                />
+                                <FormField
+                                control={form.control}
+                                name="payRiseMonth"
+                                render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Effective Month</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select month" />
+                                        </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                        {months.map((month) => (
+                                            <SelectItem key={month} value={month}>
+                                            {month}
+                                            </SelectItem>
+                                        ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                                />
+                                </>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Column 4 */}
+                    <div className="space-y-6">
+                        <div className="space-y-4 rounded-md border p-4 h-full">
+                        <h3 className="font-semibold text-base">Childcare Details</h3>
+                        <FormField
+                            control={form.control}
+                            name="numberOfChildren"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Number of Children</FormLabel>
+                                <FormControl>
+                                    <Input type="number" placeholder="e.g., 1" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                            />
+                            <FormField
+                            control={form.control}
+                            name="daysPerWeekInChildcare"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Days per Week (per child)</FormLabel>
+                                <FormControl>
+                                    <Input type="number" placeholder="e.g., 3" {...field} disabled={(watchedValues.numberOfChildren ?? 0) <= 0} />
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                            />
+                            <FormField
+                            control={form.control}
+                            name="dailyChildcareRate"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Daily Rate (£ per child)</FormLabel>
+                                <FormControl>
+                                    <Input type="number" placeholder="e.g., 60" {...field} disabled={(watchedValues.numberOfChildren ?? 0) <= 0} />
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                            />
+                        </div>
+                    </div>
                 </div>
               </CardContent>
             </form>
           </Form>
         </Card>
 
-        <div className="lg:col-span-3 space-y-8">
+        <div className="space-y-8">
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
               <Card>
                   <CardHeader>
@@ -999,7 +1018,7 @@ ${actionResult.data.summary}
                         <CardDescription>Analyze costs and ask questions about managing the £100k income threshold.</CardDescription>
                     </CardHeader>
                     <CardContent className="text-sm">
-                      <div ref={childcareChatContainerRef} className="p-4 border rounded-md mb-4 bg-muted/20 space-y-4 min-h-[16rem]">
+                      <div ref={childcareChatContainerRef} className="p-4 border rounded-md mb-4 bg-muted/20 space-y-4">
                             {isChildcareChatLoading && childcareChatHistory.length === 0 ? (
                                 <div className="flex items-center justify-center h-full">
                                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -1082,5 +1101,7 @@ ${actionResult.data.summary}
     </FormProvider>
   );
 }
+
+    
 
     
