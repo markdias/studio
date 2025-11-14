@@ -78,7 +78,7 @@ export function getTaxYearData(year: TaxYear) {
   return taxYearData[year];
 }
 
-function parseTaxCode(taxCode: string, defaultAllowance: number): number {
+export function parseTaxCode(taxCode: string, defaultAllowance: number): number {
     if (!taxCode) {
         return defaultAllowance;
     }
@@ -89,7 +89,7 @@ function parseTaxCode(taxCode: string, defaultAllowance: number): number {
     }
     
     // K codes mean income to be added to taxable pay
-    const kCodeMatch = code.match(/^K(\d+)$/);
+    const kCodeMatch = code.match(/^K(\d+)/);
     if (kCodeMatch) {
         const num = parseInt(kCodeMatch[1], 10);
         return isNaN(num) ? 0 : -(num * 10);
@@ -99,7 +99,7 @@ function parseTaxCode(taxCode: string, defaultAllowance: number): number {
     const match = code.match(/^(\d+)[LMNPTY]?$/);
     if (match) {
         const num = parseInt(match[1], 10);
-        return num * 10;
+        return isNaN(num) ? 0 : num * 10;
     }
     
     return defaultAllowance;
@@ -156,25 +156,26 @@ function calculateTaxOnIncome(taxableIncome: number, region: Region, year: TaxYe
 }
 
 
-function calculateNICForIncome(grossIncome: number, year: TaxYear): number {
+function calculateNICForPeriod(grossIncomeForPeriod: number, year: TaxYear): number {
     const { pt, uel, rate1, rate2 } = getTaxYearData(year).NIC_BANDS;
     
+    // Using monthly thresholds for per-pay-period calculation
     const monthlyPT = pt / 12;
     const monthlyUEL = uel / 12;
 
-    if (grossIncome <= monthlyPT) {
+    if (grossIncomeForPeriod <= monthlyPT) {
         return 0;
     }
     
     let nic = 0;
     
-    if (grossIncome > monthlyPT) {
-        const earningsInMainBand = Math.min(grossIncome, monthlyUEL) - monthlyPT;
+    if (grossIncomeForPeriod > monthlyPT) {
+        const earningsInMainBand = Math.min(grossIncomeForPeriod, monthlyUEL) - monthlyPT;
         nic += Math.max(0, earningsInMainBand) * rate1;
     }
     
-    if (grossIncome > monthlyUEL) {
-        const earningsInUpperBand = grossIncome - monthlyUEL;
+    if (grossIncomeForPeriod > monthlyUEL) {
+        const earningsInUpperBand = grossIncomeForPeriod - monthlyUEL;
         nic += earningsInUpperBand * rate2;
     }
 
@@ -182,112 +183,95 @@ function calculateNICForIncome(grossIncome: number, year: TaxYear): number {
 }
 
 export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationResults {
-    const { taxYear, salary, bonus = 0, pensionContribution, region, taxableBenefits = 0 } = input;
+    const { taxYear, salary, bonus = 0, pensionContribution, region, taxableBenefits = 0, taxCode } = input;
     const payRiseMonthIndex = input.hasPayRise ? months.indexOf(input.payRiseMonth) : 12;
     const bonusMonthIndex = bonus > 0 ? months.indexOf(input.bonusMonth) : -1;
 
-    // --- 1. Calculate Annual Totals ---
-    let annualSalary = 0;
-    const prePayRiseMonths = payRiseMonthIndex;
-    const postPayRiseMonths = 12 - payRiseMonthIndex;
-
-    if(input.hasPayRise && input.newSalary && input.newSalary > salary) {
-        annualSalary = (salary / 12 * prePayRiseMonths) + (input.newSalary / 12 * postPayRiseMonths);
-    } else {
-        annualSalary = salary;
-    }
-    
-    const grossAnnualIncome = annualSalary + bonus;
-    
-    const pensionableBonus = input.isBonusPensionable ? bonus * (input.pensionableBonusPercentage / 100) : 0;
-    const annualPension = (annualSalary + pensionableBonus) * (pensionContribution / 100);
-    
-    const adjustedNetIncome = grossAnnualIncome + taxableBenefits - annualPension;
-    
-    const defaultAllowance = getTaxYearData(taxYear).PERSONAL_ALLOWANCE_DEFAULT;
-    const parsedAllowanceFromCode = parseTaxCode(input.taxCode, defaultAllowance);
-    
-    const finalPersonalAllowance = calculateAnnualPersonalAllowance(adjustedNetIncome, parsedAllowanceFromCode, taxYear);
-    
-    const annualTaxableIncome = Math.max(0, adjustedNetIncome - finalPersonalAllowance);
-    
-    const annualTax = calculateTaxOnIncome(annualTaxableIncome, region, taxYear);
-
-    // --- 2. Calculate Monthly Breakdown ---
-    let annualNic = 0;
     const monthlyBreakdown: MonthlyResult[] = [];
+    
+    let totalGrossYTD = 0;
+    let totalPensionYTD = 0;
+    let totalTaxYTD = 0;
+    let totalNicYTD = 0;
+    
     const baseMonthlySalary = salary / 12;
     const newMonthlySalary = (input.hasPayRise && input.newSalary) ? input.newSalary / 12 : baseMonthlySalary;
 
-    const annualGrossForNI = annualSalary + bonus;
-    const annualNI = calculateNICForIncome(annualGrossForNI, taxYear);
-
-    let taxPaidYTD = 0;
-    let earningsYTD = 0;
+    const taxYearConfig = getTaxYearData(taxYear);
+    const parsedCodeAllowance = parseTaxCode(taxCode, taxYearConfig.PERSONAL_ALLOWANCE_DEFAULT);
 
     for (let i = 0; i < 12; i++) {
-        const monthNumber = i + 1;
-        const currentMonthlySalary = i < payRiseMonthIndex ? baseMonthlySalary : newMonthlySalary;
-        const bonusThisMonth = (i === bonusMonthIndex) ? bonus : 0;
+        const monthIndex = i;
+        const currentMonthNumber = monthIndex + 1;
+        
+        const currentMonthlySalary = monthIndex < payRiseMonthIndex ? baseMonthlySalary : newMonthlySalary;
+        const bonusThisMonth = (monthIndex === bonusMonthIndex) ? bonus : 0;
         
         const grossThisMonth = currentMonthlySalary + bonusThisMonth;
-        earningsYTD += grossThisMonth;
+        totalGrossYTD += grossThisMonth;
         
+        const isBonusPensionable = (monthIndex === bonusMonthIndex) && input.isBonusPensionable;
+        const pensionableBonusThisMonth = isBonusPensionable ? bonus * (input.pensionableBonusPercentage / 100) : 0;
+        const pensionablePayThisMonth = currentMonthlySalary + pensionableBonusThisMonth;
+        const pensionThisMonth = pensionablePayThisMonth * (pensionContribution / 100);
+        totalPensionYTD += pensionThisMonth;
+
         const taxableBenefitsThisMonth = taxableBenefits / 12;
-        const earningsForTaxYTD = earningsYTD + (taxableBenefitsThisMonth * monthNumber);
         
-        const pensionableBonusThisMonth = (i === bonusMonthIndex && input.isBonusPensionable) ? bonus * (input.pensionableBonusPercentage / 100) : 0;
-        const pensionThisMonth = (currentMonthlySalary + pensionableBonusThisMonth) * (pensionContribution / 100);
+        // Cumulative calculations for tax
+        const grossForTaxYTD = totalGrossYTD + (taxableBenefitsThisMonth * currentMonthNumber);
         
-        const adjNetYTD = earningsForTaxYTD - (annualPension * monthNumber / 12);
+        const adjustedNetIncomeYTD = grossForTaxYTD - totalPensionYTD;
+        const projectedAdjustedNetIncome = adjustedNetIncomeYTD / currentMonthNumber * 12;
+        
+        const paForYear = calculateAnnualPersonalAllowance(projectedAdjustedNetIncome, parsedCodeAllowance, taxYear);
+        const paYTD = paForYear * currentMonthNumber / 12;
 
-        const paForPeriod = calculateAnnualPersonalAllowance(
-            adjNetYTD * (12 / monthNumber), // Project annual income
-            parsedAllowanceFromCode, 
-            taxYear
-        ) * monthNumber / 12;
-        
-        const taxableYTD = Math.max(0, adjNetYTD - paForPeriod);
-        
-        const taxDueYTD = calculateTaxOnIncome(taxableYTD, region, taxYear);
-        const taxThisMonth = taxDueYTD - taxPaidYTD;
-        taxPaidYTD = taxDueYTD;
+        const taxableIncomeYTD = Math.max(0, adjustedNetIncomeYTD - paYTD);
 
-        const nicThisMonth = calculateNICForIncome(grossThisMonth, taxYear);
-        annualNic += nicThisMonth;
+        const totalTaxDueYTD = calculateTaxOnIncome(taxableIncomeYTD, region, taxYear);
+        const taxThisMonth = totalTaxDueYTD - totalTaxYTD;
+        totalTaxYTD = totalTaxDueYTD;
 
-        const takeHomeThisMonth = grossThisMonth - taxThisMonth - nicThisMonth - pensionThisMonth;
+        // Non-cumulative NI calculation
+        const nicThisMonth = calculateNICForPeriod(grossThisMonth, taxYear);
+        totalNicYTD += nicThisMonth;
+
+        const takeHomeThisMonth = grossThisMonth - pensionThisMonth - taxThisMonth - nicThisMonth;
 
         monthlyBreakdown.push({
-            month: months[i],
+            month: months[monthIndex],
             gross: grossThisMonth,
+            pension: pensionThisMonth,
             tax: taxThisMonth,
             nic: nicThisMonth,
-            pension: pensionThisMonth,
             takeHome: takeHomeThisMonth,
         });
     }
-    
-    // Correct the total annual tax based on the cumulative calculation to avoid rounding errors
-    const finalAnnualTax = taxPaidYTD;
-    const finalAnnualTakeHome = grossAnnualIncome - finalAnnualTax - annualNic - annualPension;
+
+    const annualGrossIncome = totalGrossYTD;
+    const finalAnnualTakeHome = annualGrossIncome - totalPensionYTD - totalTaxYTD - totalNicYTD;
+    const annualAdjustedNet = annualGrossIncome + taxableBenefits - totalPensionYTD;
+    const finalPersonalAllowance = calculateAnnualPersonalAllowance(annualAdjustedNet, parsedCodeAllowance, taxYear);
 
     return {
-        grossAnnualIncome: grossAnnualIncome + taxableBenefits, // Display total including benefits
-        annualTaxableIncome: annualTaxableIncome,
+        grossAnnualIncome: annualGrossIncome + taxableBenefits, // Display total including benefits
+        annualTaxableIncome: Math.max(0, annualAdjustedNet - finalPersonalAllowance),
         annualTakeHome: finalAnnualTakeHome,
-        annualTax: finalAnnualTax,
-        annualNic: annualNic,
-        annualPension: annualPension,
+        annualTax: totalTaxYTD,
+        annualNic: totalNicYTD,
+        annualPension: totalPensionYTD,
         personalAllowance: finalPersonalAllowance,
-        effectiveTaxRate: (grossAnnualIncome + taxableBenefits) > 0 ? ((finalAnnualTax + annualNic) / (grossAnnualIncome + taxableBenefits)) * 100 : 0,
+        effectiveTaxRate: (annualGrossIncome + taxableBenefits) > 0 ? ((totalTaxYTD + totalNicYTD) / (annualGrossIncome + taxableBenefits)) * 100 : 0,
         breakdown: [
             { name: 'Take-Home Pay', value: finalAnnualTakeHome, fill: 'hsl(var(--chart-1))' },
-            { name: 'Income Tax', value: finalAnnualTax, fill: 'hsl(var(--chart-2))' },
-            { name: 'National Insurance', value: annualNic, fill: 'hsl(var(--chart-3))' },
-            { name: 'Pension', value: annualPension, fill: 'hsl(var(--chart-4))' },
+            { name: 'Income Tax', value: totalTaxYTD, fill: 'hsl(var(--chart-2))' },
+            { name: 'National Insurance', value: totalNicYTD, fill: 'hsl(var(--chart-3))' },
+            { name: 'Pension', value: totalPensionYTD, fill: 'hsl(var(--chart-4))' },
         ],
         monthlyBreakdown,
     };
 }
+    
+
     
