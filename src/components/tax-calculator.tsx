@@ -57,34 +57,47 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 const initialValues: TaxCalculatorSchema = {
   taxYear: "2024/25",
   salary: 50000,
+  region: "England",
+  taxCode: "1257L",
+
+  // Optional Sections
+  showBonus: false,
+  showPension: false,
+  showBenefits: false,
+  showPayRise: false,
+  showChildcareCalculator: false,
+  showStudentLoan: false,
+  
+  // Bonus
   bonus: 0,
+  bonusMonth: "April",
+  
+  // Pension
   pensionContribution: 5,
   bonusPensionContribution: 0,
-  region: "England",
-  bonusMonth: "April",
-  taxCode: "1257L",
+  enablePensionComparison: false,
+  adjustedPensionContribution: 10,
+  
+  // Benefits
   taxableBenefits: 0,
   blind: false,
+
+  // Pay Rise
   hasPayRise: false,
   newSalary: 60000,
   payRiseMonth: "April",
-  // Childcare sections toggle
-  showChildcareCalculator: false,
+
   // Childcare
   numberOfChildren: 0,
   daysPerWeekInChildcare: 0,
   dailyChildcareRate: 0,
-  // Pension Comparison
-  enablePensionComparison: false,
-  adjustedPensionContribution: 10,
-  // Childcare support fields
   partnerIncome: 0,
   registeredChildcareProvider: false,
   childDisabled: false,
   claimingUniversalCredit: false,
   claimingTaxFreeChildcare: false,
+
   // Student Loan
-  showStudentLoan: false,
   studentLoanPlan1: false,
   studentLoanPlan2: false,
   studentLoanPlan4: false,
@@ -713,62 +726,125 @@ ${actionResult.data.summary}
             <form>
               <CardContent>
                 <div className="space-y-4 rounded-md border p-4 mb-6">
-                    <FormField
-                        control={form.control}
-                        name="showChildcareCalculator"
-                        render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between">
-                            <div className="space-y-0.5">
-                                <FormLabel>Show Childcare & Benefits Calculator</FormLabel>
-                                <FormDescription>
-                                    Enable to input childcare details and access the AI support calculators.
-                                </FormDescription>
-                            </div>
-                            <FormControl>
-                            <Switch
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                            />
-                            </FormControl>
-                        </FormItem>
-                        )}
-                    />
-                    <Separator />
-                     <FormField
-                        control={form.control}
-                        name="showStudentLoan"
-                        render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between">
-                            <div className="space-y-0.5">
-                                <FormLabel>Show Student Loan Calculator</FormLabel>
-                                <FormDescription>
-                                    Enable to input student loan details.
-                                </FormDescription>
-                            </div>
-                            <FormControl>
-                            <Switch
-                                checked={field.value}
-                                onCheckedChange={(checked) => {
-                                    field.onChange(checked);
-                                    if (!checked) {
-                                        form.setValue('studentLoanPlan1', false);
-                                        form.setValue('studentLoanPlan2', false);
-                                        form.setValue('studentLoanPlan4', false);
-                                        form.setValue('studentLoanPlan5', false);
-                                        form.setValue('postgraduateLoan', false);
-                                    }
-                                }}
-                            />
-                            </FormControl>
-                        </FormItem>
-                        )}
-                    />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                            control={form.control}
+                            name="showChildcareCalculator"
+                            render={({ field }) => (
+                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                                <div className="space-y-0.5">
+                                    <FormLabel>Childcare & Benefits</FormLabel>
+                                </div>
+                                <FormControl>
+                                <Switch
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                />
+                                </FormControl>
+                            </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="showStudentLoan"
+                            render={({ field }) => (
+                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                                <div className="space-y-0.5">
+                                    <FormLabel>Student Loan</FormLabel>
+                                </div>
+                                <FormControl>
+                                <Switch
+                                    checked={field.value}
+                                    onCheckedChange={(checked) => {
+                                        field.onChange(checked);
+                                        if (!checked) {
+                                            form.setValue('studentLoanPlan1', false);
+                                            form.setValue('studentLoanPlan2', false);
+                                            form.setValue('studentLoanPlan4', false);
+                                            form.setValue('studentLoanPlan5', false);
+                                            form.setValue('postgraduateLoan', false);
+                                        }
+                                    }}
+                                />
+                                </FormControl>
+                            </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="showBonus"
+                            render={({ field }) => (
+                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                                <div className="space-y-0.5">
+                                    <FormLabel>Bonus</FormLabel>
+                                </div>
+                                <FormControl>
+                                <Switch
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                />
+                                </FormControl>
+                            </FormItem>
+                            )}
+                        />
+                         <FormField
+                            control={form.control}
+                            name="showPension"
+                            render={({ field }) => (
+                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                                <div className="space-y-0.5">
+                                    <FormLabel>Pension</FormLabel>
+                                </div>
+                                <FormControl>
+                                <Switch
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                />
+                                </FormControl>
+                            </FormItem>
+                            )}
+                        />
+                         <FormField
+                            control={form.control}
+                            name="showBenefits"
+                            render={({ field }) => (
+                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                                <div className="space-y-0.5">
+                                    <FormLabel>Benefits & Allowances</FormLabel>
+                                </div>
+                                <FormControl>
+                                <Switch
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                />
+                                </FormControl>
+                            </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="showPayRise"
+                            render={({ field }) => (
+                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                                <div className="space-y-0.5">
+                                    <FormLabel>Pay Rise</FormLabel>
+                                </div>
+                                <FormControl>
+                                <Switch
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                />
+                                </FormControl>
+                            </FormItem>
+                            )}
+                        />
+                    </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-6">
                     {/* Column 1 */}
-                    <div className="space-y-6">
-                         <div className="space-y-4 rounded-md border p-4">
-                            <h3 className="font-semibold text-base">Your Income</h3>
+                    <div className="space-y-6 md:col-span-2 lg:col-span-4">
+                         <div className="space-y-4 rounded-md border p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-6">
+                            <h3 className="font-semibold text-base md:col-span-2 lg:col-span-4">Your Income</h3>
                             <FormField
                                 control={form.control}
                                 name="taxYear"
@@ -830,10 +906,63 @@ ${actionResult.data.summary}
                                     </FormItem>
                                 )}
                             />
+                             <FormField
+                                control={form.control}
+                                name="taxCode"
+                                render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Tax Code</FormLabel>
+                                    <div className="flex items-center gap-2">
+                                    <FormControl>
+                                        <Input
+                                        type="text"
+                                        placeholder="e.g., 1257L"
+                                        {...field}
+                                        readOnly={!isTaxCodeEditing}
+                                        className={!isTaxCodeEditing ? "bg-muted cursor-not-allowed" : ""}
+                                        />
+                                    </FormControl>
+                                    {isTaxCodeEditing ? (
+                                        <Button
+                                            type="button"
+                                            variant="secondary"
+                                            size="icon"
+                                            onClick={() => {
+                                            setIsTaxCodeEditing(false);
+                                            setIsTaxCodeManuallySet(true);
+                                            calculate();
+                                            }}
+                                            title="Save Tax Code"
+                                        >
+                                            <Save className="h-4 w-4" />
+                                        </Button>
+                                        ) : (
+                                        <Button type="button" variant="outline" size="icon" onClick={() => setIsTaxCodeEditing(true)} title="Edit Tax Code">
+                                            <Edit className="h-4 w-4" />
+                                        </Button>
+                                        )}
+                                    </div>
+                                    {isTaxCodeManuallySet && !isTaxCodeEditing && (
+                                        <div className="flex items-center justify-between mt-2">
+                                            <p className="text-xs text-muted-foreground">Tax code is set manually.</p>
+                                            <Button variant="link" size="sm" className="text-xs h-auto p-0" onClick={() => {
+                                                setIsTaxCodeManuallySet(false);
+                                                const currentTaxYear = form.getValues('taxYear');
+                                                form.setValue('taxCode', defaultTaxCodes[currentTaxYear], { shouldValidate: true, shouldDirty: true });
+                                            }}>Use Automatic</Button>
+                                        </div>
+                                    )}
+                                    <FormMessage />
+                                </FormItem>
+                                )}
+                            />
                         </div>
+                    </div>
 
-                        <div className="space-y-4 rounded-md border p-4">
+                    {watchedValues.showBonus && (
+                        <div className="space-y-4 rounded-md border p-4 md:col-span-2">
                             <h3 className="font-semibold text-base">Bonus</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                             <FormField
                             control={form.control}
                             name="bonus"
@@ -871,9 +1000,13 @@ ${actionResult.data.summary}
                                 </FormItem>
                             )}
                             />
+                            </div>
                         </div>
-                        <div className="space-y-4 rounded-md border p-4">
+                    )}
+                    {watchedValues.showBenefits && (
+                        <div className="space-y-4 rounded-md border p-4 md:col-span-2">
                              <h3 className="font-semibold text-base">Benefits & Allowances</h3>
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                              <FormField
                                 control={form.control}
                                 name="taxableBenefits"
@@ -892,7 +1025,7 @@ ${actionResult.data.summary}
                                 control={form.control}
                                 name="blind"
                                 render={({ field }) => (
-                                <FormItem className="flex flex-row items-center justify-between pt-2">
+                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm mt-8">
                                     <FormLabel className="flex items-center gap-2"><Eye className="h-4 w-4" /> Blind Person's Allowance</FormLabel>
                                     <FormControl>
                                     <Switch
@@ -903,11 +1036,12 @@ ${actionResult.data.summary}
                                 </FormItem>
                                 )}
                             />
+                            </div>
                         </div>
-                    </div>
-                     {/* Column 2 */}
-                    <div className="space-y-6">
-                        <div className="space-y-4 rounded-md border p-4">
+                    )}
+
+                    {watchedValues.showPension && (
+                         <div className="space-y-4 rounded-md border p-4 md:col-span-2">
                             <h3 className="font-semibold text-base">Pension</h3>
                              <FormField
                                 control={form.control}
@@ -987,64 +1121,17 @@ ${actionResult.data.summary}
                                 />
                             )}
                         </div>
-                         <FormField
-                            control={form.control}
-                            name="taxCode"
-                            render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Tax Code</FormLabel>
-                                <div className="flex items-center gap-2">
-                                <FormControl>
-                                    <Input
-                                    type="text"
-                                    placeholder="e.g., 1257L"
-                                    {...field}
-                                    readOnly={!isTaxCodeEditing}
-                                    className={!isTaxCodeEditing ? "bg-muted cursor-not-allowed" : ""}
-                                    />
-                                </FormControl>
-                                {isTaxCodeEditing ? (
-                                    <Button
-                                        type="button"
-                                        variant="secondary"
-                                        size="icon"
-                                        onClick={() => {
-                                        setIsTaxCodeEditing(false);
-                                        setIsTaxCodeManuallySet(true);
-                                        calculate();
-                                        }}
-                                        title="Save Tax Code"
-                                    >
-                                        <Save className="h-4 w-4" />
-                                    </Button>
-                                    ) : (
-                                    <Button type="button" variant="outline" size="icon" onClick={() => setIsTaxCodeEditing(true)} title="Edit Tax Code">
-                                        <Edit className="h-4 w-4" />
-                                    </Button>
-                                    )}
-                                </div>
-                                {isTaxCodeManuallySet && !isTaxCodeEditing && (
-                                    <div className="flex items-center justify-between mt-2">
-                                        <p className="text-xs text-muted-foreground">Tax code is set manually.</p>
-                                        <Button variant="link" size="sm" className="text-xs h-auto p-0" onClick={() => {
-                                            setIsTaxCodeManuallySet(false);
-                                            const currentTaxYear = form.getValues('taxYear');
-                                            form.setValue('taxCode', defaultTaxCodes[currentTaxYear], { shouldValidate: true, shouldDirty: true });
-                                        }}>Use Automatic</Button>
-                                    </div>
-                                )}
-                                <FormMessage />
-                            </FormItem>
-                            )}
-                        />
-                         <div className="space-y-4 rounded-md border p-4">
+                    )}
+                    {watchedValues.showPayRise && (
+                        <div className="space-y-4 rounded-md border p-4 md:col-span-2">
                             <h3 className="font-semibold text-base">Pay Rise</h3>
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                             <FormField
                                 control={form.control}
                                 name="hasPayRise"
                                 render={({ field }) => (
-                                <FormItem className="flex flex-row items-center justify-between">
-                                    <FormLabel>Have a pay rise?</FormLabel>
+                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm col-span-2">
+                                    <FormLabel>Do you have a planned pay rise?</FormLabel>
                                     <FormControl>
                                     <Switch
                                         checked={field.value}
@@ -1095,80 +1182,80 @@ ${actionResult.data.summary}
                                 />
                                 </>
                             )}
-                        </div>
-                    </div>
-                    {/* Column 3 */}
-                    <div className="space-y-6">
-                        {watchedValues.showStudentLoan && (
-                            <div className="space-y-4 rounded-md border p-4 h-full">
-                                <h3 className="font-semibold text-base flex items-center gap-2"><GraduationCap className="h-5 w-5" />Student Loan</h3>
-                                <FormField
-                                    control={form.control}
-                                    name="studentLoanPlan1"
-                                    render={({ field }) => (
-                                        <FormItem className="flex flex-row items-center justify-between">
-                                            <FormLabel>Plan 1</FormLabel>
-                                            <FormControl>
-                                                <Switch checked={field.value} onCheckedChange={field.onChange} />
-                                            </FormControl>
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="studentLoanPlan2"
-                                    render={({ field }) => (
-                                        <FormItem className="flex flex-row items-center justify-between">
-                                            <FormLabel>Plan 2</FormLabel>
-                                            <FormControl>
-                                                <Switch checked={field.value} onCheckedChange={field.onChange} />
-                                            </FormControl>
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="studentLoanPlan4"
-                                    render={({ field }) => (
-                                        <FormItem className="flex flex-row items-center justify-between">
-                                            <FormLabel>Plan 4</FormLabel>
-                                            <FormControl>
-                                                <Switch checked={field.value} onCheckedChange={field.onChange} />
-                                            </FormControl>
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="studentLoanPlan5"
-                                    render={({ field }) => (
-                                        <FormItem className="flex flex-row items-center justify-between">
-                                            <FormLabel>Plan 5</FormLabel>
-                                            <FormControl>
-                                                <Switch checked={field.value} onCheckedChange={field.onChange} />
-                                            </FormControl>
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="postgraduateLoan"
-                                    render={({ field }) => (
-                                        <FormItem className="flex flex-row items-center justify-between">
-                                            <FormLabel>Postgraduate Loan</FormLabel>
-                                            <FormControl>
-                                                <Switch checked={field.value} onCheckedChange={field.onChange} />
-                                            </FormControl>
-                                        </FormItem>
-                                    )}
-                                />
                             </div>
-                        )}
-                    </div>
+                        </div>
+                    )}
 
-                    {/* Column 4 - Childcare */}
+                    {watchedValues.showStudentLoan && (
+                        <div className="space-y-4 rounded-md border p-4 md:col-span-2 lg:col-span-2">
+                            <h3 className="font-semibold text-base flex items-center gap-2"><GraduationCap className="h-5 w-5" />Student Loan</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField
+                                control={form.control}
+                                name="studentLoanPlan1"
+                                render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                                        <FormLabel>Plan 1</FormLabel>
+                                        <FormControl>
+                                            <Switch checked={field.value} onCheckedChange={field.onChange} />
+                                        </FormControl>
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="studentLoanPlan2"
+                                render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                                        <FormLabel>Plan 2</FormLabel>
+                                        <FormControl>
+                                            <Switch checked={field.value} onCheckedChange={field.onChange} />
+                                        </FormControl>
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="studentLoanPlan4"
+                                render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                                        <FormLabel>Plan 4</FormLabel>
+                                        <FormControl>
+                                            <Switch checked={field.value} onCheckedChange={field.onChange} />
+                                        </FormControl>
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="studentLoanPlan5"
+                                render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                                        <FormLabel>Plan 5</FormLabel>
+                                        <FormControl>
+                                            <Switch checked={field.value} onCheckedChange={field.onChange} />
+                                        </FormControl>
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="postgraduateLoan"
+                                render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                                        <FormLabel>Postgraduate Loan</FormLabel>
+                                        <FormControl>
+                                            <Switch checked={field.value} onCheckedChange={field.onChange} />
+                                        </FormControl>
+                                    </FormItem>
+                                )}
+                            />
+                            </div>
+                        </div>
+                    )}
+
                     {watchedValues.showChildcareCalculator && (
-                        <div className="space-y-6">
+                        <div className="space-y-6 md:col-span-2 lg:col-span-2">
                             <div className="space-y-4 rounded-md border p-4">
                                 <h3 className="font-semibold text-base">Childcare Details</h3>
                                 <FormField

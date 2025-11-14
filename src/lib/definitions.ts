@@ -17,22 +17,35 @@ export type TaxYear = (typeof taxYears)[number];
 export const taxCalculatorSchema = z.object({
   taxYear: z.enum(taxYears).default("2024/25"),
   salary: z.coerce.number().min(0, "Salary must be a positive number."),
+  region: z.enum(regions).default("England"),
+  taxCode: z.string().default("1257L").describe("The user's tax code, e.g., 1257L"),
+
+  // Optional section toggles
+  showBonus: z.boolean().optional().default(false),
+  showPension: z.boolean().optional().default(false),
+  showBenefits: z.boolean().optional().default(false),
+  showPayRise: z.boolean().optional().default(false),
+  showChildcareCalculator: z.boolean().optional().default(false),
+  showStudentLoan: z.boolean().default(false),
+  
+  // Bonus fields
   bonus: z.coerce.number().min(0, "Bonus must be a positive number.").optional().default(0),
-  taxableBenefits: z.coerce.number().min(0, "Taxable benefits must be a positive number.").optional().default(0),
+  bonusMonth: z.enum(months).default("April"),
+
+  // Pension fields
   pensionContribution: z.coerce.number().min(0, "Pension contribution cannot be negative.").max(100, "Pension contribution cannot exceed 100%.").optional().default(0),
   bonusPensionContribution: z.coerce.number().min(0, "Bonus contribution cannot be negative.").max(100, "Bonus contribution cannot be over 100%").optional().default(0),
-  region: z.enum(regions).default("England"),
-  bonusMonth: z.enum(months).default("April"),
-  taxCode: z.string().default("1257L").describe("The user's tax code, e.g., 1257L"),
+  enablePensionComparison: z.boolean().optional().default(false),
+  adjustedPensionContribution: z.coerce.number().min(0, "Pension contribution cannot be negative.").max(100, "Pension contribution cannot exceed 100%.").optional().default(10),
+  
+  // Benefits & Allowances fields
+  taxableBenefits: z.coerce.number().min(0, "Taxable benefits must be a positive number.").optional().default(0),
   blind: z.boolean().default(false).describe("Whether the user is registered blind"),
   
   // Pay rise fields
   hasPayRise: z.boolean().default(false),
   newSalary: z.coerce.number().min(0).optional(),
   payRiseMonth: z.enum(months).default("April"),
-
-  // Childcare fields toggle
-  showChildcareCalculator: z.boolean().optional().default(false),
   
   // Childcare fields
   numberOfChildren: z.coerce.number().min(0).optional().default(0),
@@ -41,17 +54,12 @@ export const taxCalculatorSchema = z.object({
   registeredChildcareProvider: z.boolean().optional().default(false),
   childDisabled: z.boolean().optional().default(false),
 
-  // Partner & Benefits
+  // Partner & Benefits (Childcare related)
   partnerIncome: z.coerce.number().min(0, "Partner income must be a positive number.").optional().default(0),
   claimingUniversalCredit: z.boolean().optional().default(false),
   claimingTaxFreeChildcare: z.boolean().optional().default(false),
 
-  // Pension Comparison
-  enablePensionComparison: z.boolean().optional().default(false),
-  adjustedPensionContribution: z.coerce.number().min(0, "Pension contribution cannot be negative.").max(100, "Pension contribution cannot exceed 100%.").optional().default(10),
-
-  // Student Loan
-  showStudentLoan: z.boolean().default(false),
+  // Student Loan fields
   studentLoanPlan1: z.boolean().default(false),
   studentLoanPlan2: z.boolean().default(false),
   studentLoanPlan4: z.boolean().default(false),
