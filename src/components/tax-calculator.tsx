@@ -471,10 +471,22 @@ ${actionResult.data.summary}
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(value);
 
-  const renderFormattedText = (text: string) => {
+ const renderFormattedText = (text: string) => {
     // Convert markdown bold to strong tags
     text = text.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>');
     
+    // Convert markdown table to HTML table
+    const tableRegex = /\|(.+)\|\n\|-+\|.+\n((?:\|.*\|\n?)+)/g;
+    text = text.replace(tableRegex, (match, headerRow, bodyRows) => {
+      const headers = headerRow.split('|').map(h => h.trim()).filter(Boolean);
+      const rows = bodyRows.trim().split('\n').map(row => row.split('|').map(c => c.trim()).filter(Boolean));
+
+      const tableHead = `<thead><tr class="border-b">${headers.map(h => `<th class="p-2 text-left font-semibold">${h}</th>`).join('')}</tr></thead>`;
+      const tableBody = `<tbody>${rows.map(row => `<tr class="border-b">${row.map(c => `<td class="p-2">${c}</td>`).join('')}</tr>`).join('')}</tbody>`;
+
+      return `<div class="overflow-x-auto"><table class="w-full text-left my-4">${tableHead}${tableBody}</table></div>`;
+    });
+
     // Convert JSON blocks to pre-formatted code blocks
     text = text.replace(/```json\n([\s\S]*?)```/g, (match, p1) => {
       try {
@@ -1258,7 +1270,7 @@ ${actionResult.data.summary}
                             ) : (
                                 taxChildcareChatHistory.map((msg, index) => (
                                     <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                        <div className={`p-3 rounded-lg max-w-xl ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>
+                                        <div className={`p-3 rounded-lg ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>
                                             <div className="whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: renderFormattedText(msg.content) }} />
                                         </div>
                                     </div>
