@@ -114,7 +114,7 @@ function calculateNIC(grossAnnualIncome: number): number {
 export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationResults {
   const grossAnnualIncome = input.salary + (input.bonus ?? 0);
   const annualPension = grossAnnualIncome * (input.pensionContribution / 100);
-  
+
   const adjustedNetIncome = grossAnnualIncome - annualPension;
   const personalAllowance = calculatePersonalAllowance(grossAnnualIncome, input.taxCode);
   const taxableIncome = Math.max(0, grossAnnualIncome - personalAllowance - annualPension);
@@ -130,20 +130,20 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
 
   // Monthly breakdown
   const monthlySalary = input.salary / 12;
+  const monthlyBreakdown: MonthlyResult[] = [];
   
   // A real PAYE system would be cumulative. This is a simplified non-cumulative monthly estimate.
-  const monthlyBreakdown: MonthlyResult[] = months.map(month => {
+  months.forEach((month, index) => {
       const isBonusMonth = month === input.bonusMonth && (input.bonus ?? 0) > 0;
       const currentMonthGross = monthlySalary + (isBonusMonth ? (input.bonus ?? 0) : 0);
       const currentMonthPension = currentMonthGross * (input.pensionContribution / 100);
 
-      const cumulativeGross = (monthlySalary * (months.indexOf(month) + 1)) + (isBonusMonth ? (input.bonus ?? 0) : 0);
-      
+      const cumulativeGross = (monthlySalary * (index + 1)) + (isBonusMonth && monthlyBreakdown.every(m => m.month !== input.bonusMonth) ? (input.bonus ?? 0) : 0) + monthlyBreakdown.reduce((acc, prev) => acc + prev.gross - (prev.month === input.bonusMonth ? (input.bonus ?? 0) : 0) - monthlySalary, 0);
+
       const cumulativePension = cumulativeGross * (input.pensionContribution / 100);
-      const cumulativeAdjustedNet = cumulativeGross - cumulativePension;
       
       const annualisedGross = currentMonthGross * 12; // Simplistic annualisation for allowance calculation
-      const cumulativePersonalAllowance = calculatePersonalAllowance(annualisedGross, input.taxCode) / 12 * (months.indexOf(month) + 1);
+      const cumulativePersonalAllowance = calculatePersonalAllowance(grossAnnualIncome, input.taxCode) / 12 * (index + 1);
 
       const cumulativeTaxable = Math.max(0, cumulativeGross - cumulativePersonalAllowance - cumulativePension);
       const cumulativeTax = calculateIncomeTax(cumulativeTaxable, input.region);
@@ -157,14 +157,14 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
 
       const currentMonthTakeHome = currentMonthGross - currentMonthTax - currentMonthNic - currentMonthPension;
 
-      return {
+      monthlyBreakdown.push({
           month,
           gross: currentMonthGross,
           pension: currentMonthPension,
           tax: currentMonthTax,
           nic: currentMonthNic,
           takeHome: currentMonthTakeHome,
-      };
+      });
   });
   
   // Recalculate annual totals from the more accurate monthly breakdown
