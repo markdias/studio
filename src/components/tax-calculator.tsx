@@ -169,12 +169,12 @@ export default function TaxCalculator() {
 
     if (results) {
       const taxYearData = getTaxYearData(watchedValues.taxYear);
-      const grossIncome = results.grossAnnualIncome - (watchedValues.taxableBenefits ?? 0);
+      const grossIncome = results.grossAnnualIncome;
       const adjustedNetIncome = grossIncome - results.annualPension;
       
       let newTaxCode = defaultTaxCodes[watchedValues.taxYear];
       
-      if (adjustedNetIncome > taxYearData.PA_TAPER_THRESHOLD) {
+      if (adjustedNetIncome > taxYearData.PERSONAL_ALLOWANCE_DEFAULT && adjustedNetIncome > taxYearData.PA_TAPER_THRESHOLD) {
         if (results.personalAllowance <= 0) {
           newTaxCode = '0T';
         } else {
@@ -544,8 +544,6 @@ ${actionResult.data.summary}
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm rounded-md border p-2">
                     <div className="text-right text-muted-foreground">Gross Pay:</div>
                     <div>{formatCurrency(res.grossAnnualIncome)}</div>
-                    <div className="text-right text-muted-foreground">Taxable Benefits:</div>
-                    <div>+ {formatCurrency(watchedValues.taxableBenefits ?? 0)}</div>
                     <div className="text-right text-muted-foreground">Pension:</div>
                     <div>- {formatCurrency(res.annualPension)}</div>
                     <div className="text-right text-muted-foreground">Personal Allowance:</div>
@@ -1295,3 +1293,5 @@ ${actionResult.data.summary}
     </FormProvider>
   );
 }
+
+    
