@@ -1026,7 +1026,7 @@ ${actionResult.data.summary}
                             ) : (
                                 childcareChatHistory.map((msg, index) => (
                                     <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                        <div className={`p-3 rounded-lg max-w-md ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>
+                                        <div className={`p-3 rounded-lg ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>
                                         <div className="whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: renderFormattedText(msg.content) }} />
                                         </div>
                                     </div>
