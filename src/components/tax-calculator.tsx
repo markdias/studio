@@ -113,6 +113,7 @@ export default function TaxCalculator() {
       setResults(calculateTakeHomePay(parsed.data));
     } else {
       setResults(null);
+      console.log(parsed.error);
     }
   }
 
@@ -1056,6 +1057,8 @@ ${actionResult.data.summary}
     </FormProvider>
   );
 }
+
+    
 
     
 
