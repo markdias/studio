@@ -306,6 +306,10 @@ ${actionResult.data.summary}
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(value);
 
+  const renderFormattedText = (text: string) => {
+    return text.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>');
+  };
+
   return (
     <FormProvider {...form}>
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
@@ -752,7 +756,7 @@ ${actionResult.data.summary}
                                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
                             </div>
                         ) : taxChatHistory.length === 0 ? (
-                            <p className="text-muted-foreground text-center">Click the button below to generate your initial tax-saving tips.</p>
+                            <div className="text-center p-4 text-muted-foreground">Click the button below to generate your initial tax-saving tips.</div>
                         ) : (
                             taxChatHistory.map((msg, index) => (
                                 <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -810,13 +814,12 @@ ${actionResult.data.summary}
                                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
                             </div>
                         ) : childcareChatHistory.length === 0 ? (
-                            <p className="text-muted-foreground text-center">Fill in childcare details and click below to generate advice.</p>
+                            <div className="text-center p-4 text-muted-foreground">Fill in childcare details and click below to generate advice.</div>
                         ) : (
                             childcareChatHistory.map((msg, index) => (
                                 <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                     <div className={`p-3 rounded-lg max-w-md ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>
-                                        <p className="whitespace-pre-wrap">{msg.content.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>')
-                                            .split('\n').map((line, i) => <span key={i}>{line}<br/></span>)}</p>
+                                       <div className="whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: renderFormattedText(msg.content) }} />
                                     </div>
                                 </div>
                             ))
