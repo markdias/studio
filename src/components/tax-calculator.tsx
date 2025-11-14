@@ -128,6 +128,18 @@ export default function TaxCalculator() {
     calculate();
     return () => subscription.unsubscribe();
   }, [form, isTaxCodeManuallySet]);
+  
+  useEffect(() => {
+    // This effect runs only when salary changes
+    // It resets the AI chat boxes to their initial state.
+    if (taxChatHistory.length > 0) {
+      setTaxChatHistory([]);
+    }
+    if (childcareAdvice || childcareChatHistory.length > 0) {
+      setChildcareAdvice(null);
+      setChildcareChatHistory([]);
+    }
+  }, [watchedValues.salary]);
 
 
    useEffect(() => {
@@ -977,13 +989,13 @@ ${actionResult.data.summary}
                     <CardDescription>Analyze costs and ask questions about managing the £100k income threshold.</CardDescription>
                 </CardHeader>
                 <CardContent className="text-sm">
-                   <div ref={childcareChatContainerRef} className="min-h-[16rem] p-4 border rounded-md mb-4 bg-muted/20 space-y-4">
+                   <div ref={childcareChatContainerRef} className="p-4 border rounded-md mb-4 bg-muted/20 space-y-4">
                         {isChildcareChatLoading && childcareChatHistory.length === 0 ? (
-                            <div className="flex items-center justify-center h-full">
+                            <div className="flex items-center justify-center">
                                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
                             </div>
                         ) : childcareChatHistory.length === 0 ? (
-                             <div className="flex items-center justify-center h-full min-h-[14rem]">
+                             <div className="flex items-center justify-center min-h-[14rem]">
                                 <div className="text-center text-muted-foreground">
                                     Fill in childcare details and click below to generate advice.
                                 </div>
