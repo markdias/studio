@@ -1,4 +1,5 @@
-import type { Region, TaxCalculatorSchema, CalculationResults } from "@/lib/definitions";
+import type { Region, TaxCalculatorSchema, CalculationResults, MonthlyResult } from "@/lib/definitions";
+import { months } from "@/lib/definitions";
 
 const PERSONAL_ALLOWANCE_DEFAULT = 12570;
 const PA_TAPER_THRESHOLD = 100000;
@@ -10,10 +11,10 @@ const ENGLAND_WALES_NI_BANDS = {
 };
 
 const SCOTLAND_BANDS = {
-  starter: { rate: 0.19, threshold: 2306 }, // 14876 - 12570
-  basic: { rate: 0.20, threshold: 13991 }, // 26561 - 12570
-  intermediate: { rate: 0.21, threshold: 31092 }, // 43662 - 12570
-  higher: { rate: 0.42, threshold: 62430 }, // 75000 - 12570
+  starter: { rate: 0.19, threshold: 2306 },
+  basic: { rate: 0.20, threshold: 13991 },
+  intermediate: { rate: 0.21, threshold: 31092 },
+  higher: { rate: 0.42, threshold: 62430 },
   advanced: { rate: 0.45, threshold: 125140 },
   top: { rate: 0.48, threshold: Infinity },
 };
@@ -22,8 +23,8 @@ const SCOTLAND_BANDS = {
 const NIC_BANDS = {
   primaryThreshold: 12570,
   upperEarningsLimit: 50270,
-  rate1: 0.08, // Main NIC rate
-  rate2: 0.02, // Additional NIC rate
+  rate1: 0.08,
+  rate2: 0.02,
 };
 
 function calculatePersonalAllowance(adjustedNetIncome: number): number {
@@ -96,8 +97,7 @@ function calculateNIC(grossAnnualIncome: number): number {
 export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationResults {
   const grossAnnualIncome = input.salary + (input.bonus ?? 0);
   const annualPension = grossAnnualIncome * (input.pensionContribution / 100);
-
-  // For this calculator, we assume pension contributions are tax-deductible
+  
   const adjustedNetIncome = grossAnnualIncome - annualPension;
   const personalAllowance = calculatePersonalAllowance(grossAnnualIncome);
   const taxableIncome = Math.max(0, grossAnnualIncome - personalAllowance - annualPension);
@@ -109,14 +109,40 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
   const annualTakeHome = grossAnnualIncome - totalDeductions;
 
   const effectiveTaxRate = grossAnnualIncome > 0 ? ((annualTax + annualNic) / grossAnnualIncome) * 100 : 0;
-
   const takeHome = Math.max(0, annualTakeHome);
+
+  // Monthly breakdown
+  const monthlySalary = input.salary / 12;
+  const monthlyTax = annualTax / 12;
+  const monthlyNic = annualNic / 12;
+
+  const monthlyBreakdown: MonthlyResult[] = months.map(month => {
+    const isBonusMonth = month === input.bonusMonth && (input.bonus ?? 0) > 0;
+    const currentMonthGross = monthlySalary + (isBonusMonth ? (input.bonus ?? 0) : 0);
+    const monthlyPensionContribution = currentMonthGross * (input.pensionContribution / 100);
+    
+    // For simplicity in this model, tax and NIC are spread evenly.
+    // A real PAYE system would adjust dynamically.
+    const currentMonthTakeHome = currentMonthGross - monthlyTax - monthlyNic - monthlyPensionContribution;
+
+    return {
+      month,
+      gross: currentMonthGross,
+      pension: monthlyPensionContribution,
+      tax: monthlyTax,
+      nic: monthlyNic,
+      takeHome: currentMonthTakeHome,
+    };
+  });
+
+  // Recalculate annual take-home from monthly breakdown for accuracy with bonus month
+  const accurateAnnualTakeHome = monthlyBreakdown.reduce((acc, month) => acc + month.takeHome, 0);
 
   return {
     grossAnnualIncome,
     grossMonthlyIncome: grossAnnualIncome / 12,
-    annualTakeHome: takeHome,
-    monthlyTakeHome: takeHome / 12,
+    annualTakeHome: accurateAnnualTakeHome,
+    monthlyTakeHome: accurateAnnualTakeHome / 12,
     annualTax,
     monthlyTax: annualTax / 12,
     annualNic,
@@ -125,10 +151,11 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
     monthlyPension: annualPension / 12,
     effectiveTaxRate,
     breakdown: [
-      { name: 'Take-Home Pay', value: takeHome, fill: 'hsl(var(--chart-1))' },
+      { name: 'Take-Home Pay', value: accurateAnnualTakeHome, fill: 'hsl(var(--chart-1))' },
       { name: 'Income Tax', value: annualTax, fill: 'hsl(var(--chart-2))' },
       { name: 'National Insurance', value: annualNic, fill: 'hsl(var(--chart-3))' },
       { name: 'Pension', value: annualPension, fill: 'hsl(var(--chart-4))' },
     ],
+    monthlyBreakdown,
   };
 }

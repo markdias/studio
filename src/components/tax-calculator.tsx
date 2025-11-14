@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertTriangle, Lightbulb, Loader2 } from "lucide-react";
+import { AlertTriangle, Lightbulb, Loader2, CalendarIcon } from "lucide-react";
 import {
   ChartContainer,
   ChartTooltip,
@@ -40,17 +40,20 @@ import {
 import { PieChart, Pie, Cell } from "recharts";
 import { Separator } from "@/components/ui/separator";
 
-import { taxCalculatorSchema, type TaxCalculatorSchema, type CalculationResults, regions } from "@/lib/definitions";
+import { taxCalculatorSchema, type TaxCalculatorSchema, type CalculationResults, regions, months } from "@/lib/definitions";
 import { calculateTakeHomePay } from "@/lib/tax-logic";
 import { generateTaxSavingTipsAction } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { Slider } from "@/components/ui/slider";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
 
 const initialValues: TaxCalculatorSchema = {
   salary: 50000,
   bonus: 0,
   pensionContribution: 5,
   region: "England",
+  bonusMonth: "April",
 };
 
 export default function TaxCalculator() {
@@ -168,6 +171,30 @@ export default function TaxCalculator() {
                     </FormItem>
                   )}
                 />
+                 <FormField
+                  control={form.control}
+                  name="bonusMonth"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Bonus Month</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={(watchedValues.bonus ?? 0) <= 0}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select bonus month" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {months.map((month) => (
+                            <SelectItem key={month} value={month}>
+                              {month}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <FormField
                   control={form.control}
                   name="pensionContribution"
@@ -219,16 +246,16 @@ export default function TaxCalculator() {
         <div className="lg:col-span-3 space-y-8">
             <Card>
                 <CardHeader>
-                    <CardTitle className="font-headline">Your Results</CardTitle>
-                    <CardDescription>An estimate of your take-home pay based on your details.</CardDescription>
+                    <CardTitle className="font-headline">Your Annual Results</CardTitle>
+                    <CardDescription>An estimate of your annual take-home pay based on your details.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     {results ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-4">
                                 <div className="text-center">
-                                    <p className="text-sm text-muted-foreground">Monthly Take-Home</p>
-                                    <p className="text-4xl font-bold text-primary">{formatCurrency(results.monthlyTakeHome)}</p>
+                                    <p className="text-sm text-muted-foreground">Annual Take-Home</p>
+                                    <p className="text-4xl font-bold text-primary">{formatCurrency(results.annualTakeHome)}</p>
                                 </div>
                                 <Separator />
                                 <div className="grid grid-cols-2 gap-4 text-sm">
@@ -240,11 +267,11 @@ export default function TaxCalculator() {
                                         <p className="text-muted-foreground">Pension</p>
                                     </div>
                                     <div>
-                                        <p className="font-semibold">{formatCurrency(results.grossMonthlyIncome)}</p>
-                                        <p className="font-semibold">{formatCurrency(results.monthlyTakeHome)}</p>
-                                        <p className="font-semibold">{formatCurrency(results.monthlyTax)}</p>
-                                        <p className="font-semibold">{formatCurrency(results.monthlyNic)}</p>
-                                        <p className="font-semibold">{formatCurrency(results.monthlyPension)}</p>
+                                        <p className="font-semibold">{formatCurrency(results.grossAnnualIncome)}</p>
+                                        <p className="font-semibold">{formatCurrency(results.annualTakeHome)}</p>
+                                        <p className="font-semibold">{formatCurrency(results.annualTax)}</p>
+                                        <p className="font-semibold">{formatCurrency(results.annualNic)}</p>
+                                        <p className="font-semibold">{formatCurrency(results.annualPension)}</p>
                                     </div>
                                 </div>
                                 <Separator />
@@ -297,6 +324,41 @@ export default function TaxCalculator() {
                 )}
             </Card>
 
+            {results && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="font-headline flex items-center gap-2"><CalendarIcon className="text-primary h-6 w-6" />Monthly Breakdown</CardTitle>
+                  <CardDescription>A month-by-month view of your estimated earnings and deductions.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="font-semibold">Month</TableHead>
+                        <TableHead className="text-right font-semibold">Gross Pay</TableHead>
+                        <TableHead className="text-right font-semibold">Pension</TableHead>
+                        <TableHead className="text-right font-semibold">Income Tax</TableHead>
+                        <TableHead className="text-right font-semibold">Nat. Ins.</TableHead>
+                        <TableHead className="text-right font-semibold text-primary">Take-Home</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {results.monthlyBreakdown.map((row) => (
+                        <TableRow key={row.month} className={row.gross > (results.grossAnnualIncome / 12) ? "bg-secondary hover:bg-secondary/80 font-semibold" : ""}>
+                          <TableCell>{row.month}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(row.gross)}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(row.pension)}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(row.tax)}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(row.nic)}</TableCell>
+                          <TableCell className="text-right text-primary font-bold">{formatCurrency(row.takeHome)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            )}
+
             <Card>
                 <CardHeader>
                     <CardTitle className="font-headline flex items-center gap-2"><Lightbulb className="text-accent" />AI Tax Advisor</CardTitle>
@@ -324,5 +386,3 @@ export default function TaxCalculator() {
     </FormProvider>
   );
 }
-
-    
