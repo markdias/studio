@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertTriangle, Lightbulb, Loader2, CalendarIcon, Baby, Send, Download, Upload, Edit, Save } from "lucide-react";
+import { AlertTriangle, Lightbulb, Loader2, CalendarIcon, Baby, Send, Download, Upload, Edit, Save, HelpCircle } from "lucide-react";
 import {
   ChartContainer,
   ChartTooltip,
@@ -44,7 +44,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 import { taxCalculatorSchema, type TaxCalculatorSchema, type CalculationResults, regions, months, taxYears, type ChildcareAdviceOutput, ChatMessage } from "@/lib/definitions";
 import { calculateTakeHomePay, getTaxYearData, parseTaxCode } from "@/lib/tax-logic";
-import { generateTaxSavingTipsAction, generateChildcareAdviceAction, financialChatAction } from "@/app/actions";
+import { generateTaxSavingTipsAction, generateChildcareAdviceAction, financialChatAction, taxChildcareChatAction } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { Slider } from "@/components/ui/slider";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -95,11 +95,17 @@ export default function TaxCalculator() {
   const [childcareChatInput, setChildcareChatInput] = useState("");
   const [isChildcareChatLoading, setIsChildcareChatLoading] = useState(false);
 
+  const [taxChildcareChatHistory, setTaxChildcareChatHistory] = useState<ChatMessage[]>([]);
+  const [taxChildcareChatInput, setTaxChildcareChatInput] = useState("");
+  const [isTaxChildcareChatLoading, setIsTaxChildcareChatLoading] = useState(false);
+
+
   const [isTaxCodeEditing, setIsTaxCodeEditing] = useState(false);
   const [isTaxCodeManuallySet, setIsTaxCodeManuallySet] = useState(false);
 
   const taxChatContainerRef = useRef<HTMLDivElement>(null);
   const childcareChatContainerRef = useRef<HTMLDivElement>(null);
+  const taxChildcareChatContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
 
@@ -151,6 +157,9 @@ export default function TaxCalculator() {
       setChildcareAdvice(null);
       setChildcareChatHistory([]);
     }
+     if (taxChildcareChatHistory.length > 0) {
+      setTaxChildcareChatHistory([]);
+    }
   }, [watchedValues.salary]);
 
 
@@ -188,6 +197,18 @@ export default function TaxCalculator() {
       taxChatContainerRef.current.scrollTop = taxChatContainerRef.current.scrollHeight;
     }
   }, [taxChatHistory]);
+
+  useEffect(() => {
+    if (childcareChatContainerRef.current) {
+      childcareChatContainerRef.current.scrollTop = childcareChatContainerRef.current.scrollHeight;
+    }
+  }, [childcareChatHistory]);
+
+   useEffect(() => {
+    if (taxChildcareChatContainerRef.current) {
+      taxChildcareChatContainerRef.current.scrollTop = taxChildcareChatContainerRef.current.scrollHeight;
+    }
+  }, [taxChildcareChatHistory]);
 
 
    const handleExport = () => {
@@ -365,8 +386,8 @@ export default function TaxCalculator() {
     setChildcareChatHistory([]);
 
     const actionResult = await generateChildcareAdviceAction({
-      annualGrossIncome: (results?.grossAnnualIncome ?? parsed.data.salary) - (results?.taxableBenefits ?? 0),
-      taxableBenefits: parsed.data.taxableBenefits,
+      annualGrossIncome: parsed.data.salary + (parsed.data.bonus ?? 0),
+      taxableBenefits: parsed.data.taxableBenefits ?? 0,
       pensionContributionPercentage: parsed.data.pensionContribution,
       numberOfChildren: parsed.data.numberOfChildren,
       daysPerWeekInChildcare: parsed.data.daysPerWeekInChildcare,
@@ -423,13 +444,49 @@ ${actionResult.data.summary}
     }
     setIsChildcareChatLoading(false);
   }
+
+  const handleTaxChildcareChatSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!taxChildcareChatInput.trim()) return;
+
+    const newHistory: ChatMessage[] = [...taxChildcareChatHistory, { role: 'user', content: taxChildcareChatInput }];
+    setTaxChildcareChatHistory(newHistory);
+    setTaxChildcareChatInput("");
+    setIsTaxChildcareChatLoading(true);
+
+    const actionResult = await taxChildcareChatAction({
+      history: newHistory,
+      question: taxChildcareChatInput,
+    });
+
+    if (actionResult.success && actionResult.data) {
+      setTaxChildcareChatHistory(prev => [...prev, { role: 'model', content: actionResult.data.answer }]);
+    } else {
+      setTaxChildcareChatHistory(prev => [...prev, { role: 'model', content: `Sorry, I ran into an error: ${actionResult.error}` }]);
+    }
+    setIsTaxChildcareChatLoading(false);
+  }
   
   
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(value);
 
   const renderFormattedText = (text: string) => {
-    return text.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>');
+    // Convert markdown bold to strong tags
+    text = text.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>');
+    
+    // Convert JSON blocks to pre-formatted code blocks
+    text = text.replace(/```json\n([\s\S]*?)```/g, (match, p1) => {
+      try {
+        const parsedJson = JSON.parse(p1);
+        const formattedJson = JSON.stringify(parsedJson, null, 2);
+        return `<pre class="bg-secondary p-4 rounded-md overflow-x-auto text-sm"><code>${formattedJson}</code></pre>`;
+      } catch (e) {
+        return `<pre class="bg-secondary p-4 rounded-md overflow-x-auto text-sm"><code>${p1}</code></pre>`;
+      }
+    });
+
+    return text;
   };
 
   const renderResultsPanel = (res: CalculationResults | null, title: string) => {
@@ -1028,9 +1085,10 @@ ${actionResult.data.summary}
             </div>
 
             <Tabs defaultValue="tax-advisor">
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="tax-advisor"><Lightbulb className="text-accent" />AI Tax Advisor</TabsTrigger>
-                <TabsTrigger value="childcare-advisor"><Baby className="text-accent" />AI Childcare Advisor</TabsTrigger>
+                <TabsTrigger value="childcare-advisor"><Baby className="text-accent" />AI £100k Advisor</TabsTrigger>
+                <TabsTrigger value="childcare-calculator"><HelpCircle className="text-accent" />Childcare Support Calculator</TabsTrigger>
               </TabsList>
               <TabsContent value="tax-advisor">
                 <Card>
@@ -1102,7 +1160,7 @@ ${actionResult.data.summary}
                         <CardDescription>Analyze costs and ask questions about managing the £100k income threshold.</CardDescription>
                     </CardHeader>
                     <CardContent className="text-sm">
-                      <div ref={childcareChatContainerRef} className="h-auto p-4 border rounded-md mb-4 bg-muted/20 space-y-4">
+                      <div ref={childcareChatContainerRef} className="p-4 border rounded-md mb-4 bg-muted/20 space-y-4">
                             {isChildcareChatLoading && childcareChatHistory.length === 0 ? (
                                 <div className="flex items-center justify-center h-full">
                                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -1179,10 +1237,66 @@ ${actionResult.data.summary}
                     </CardFooter>
                 </Card>
               </TabsContent>
+              <TabsContent value="childcare-calculator">
+                 <Card>
+                    <CardHeader>
+                        <CardTitle className="font-headline flex items-center gap-2"><HelpCircle className="text-accent" />Childcare Support Calculator</CardTitle>
+                        <CardDescription>Answer the questions to get a detailed breakdown of your childcare support eligibility.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="text-sm">
+                      <div ref={taxChildcareChatContainerRef} className="h-96 overflow-y-auto p-4 border rounded-md mb-4 bg-muted/20 space-y-4">
+                            {isTaxChildcareChatLoading && taxChildcareChatHistory.length === 0 ? (
+                                <div className="flex items-center justify-center h-full">
+                                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                                </div>
+                            ) : taxChildcareChatHistory.length === 0 ? (
+                                <div className="flex items-center justify-center h-full">
+                                    <div className="text-center text-muted-foreground">
+                                        Ask the AI to start the calculation. For example, type "Start".
+                                    </div>
+                                </div>
+                            ) : (
+                                taxChildcareChatHistory.map((msg, index) => (
+                                    <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                        <div className={`p-3 rounded-lg max-w-xl ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>
+                                            <div className="whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: renderFormattedText(msg.content) }} />
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                            {isTaxChildcareChatLoading && taxChildcareChatHistory.length > 0 && (
+                                <div className="flex justify-start">
+                                    <div className="p-3 rounded-lg bg-secondary">
+                                        <Loader2 className="h-5 w-5 animate-spin" />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        <form onSubmit={handleTaxChildcareChatSubmit} className="flex gap-2">
+                            <Textarea
+                                placeholder="Your answer..."
+                                value={taxChildcareChatInput}
+                                onChange={(e) => setTaxChildcareChatInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault();
+                                    handleTaxChildcareChatSubmit(e as any);
+                                }
+                                }}
+                                disabled={isTaxChildcareChatLoading}
+                                rows={1}
+                                className="flex-grow resize-none"
+                            />
+                            <Button type="submit" disabled={isTaxChildcareChatLoading || !taxChildcareChatInput.trim()} size="icon">
+                                <Send />
+                            </Button>
+                        </form>
+                    </CardContent>
+                </Card>
+              </TabsContent>
             </Tabs>
         </div>
       </div>
     </FormProvider>
   );
 }
-

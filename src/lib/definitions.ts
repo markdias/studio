@@ -154,3 +154,16 @@ export const FinancialChatOutputSchema = z.object({
   answer: z.string().describe("The AI's answer to the user's question."),
 });
 export type FinancialChatOutput = z.infer<typeof FinancialChatOutputSchema>;
+
+
+// Tax Childcare Flow
+export const TaxChildcareChatInputSchema = z.object({
+  history: z.array(ChatMessageSchema).describe('The history of the conversation so far.'),
+  question: z.string().describe('The latest question or answer from the user.'),
+});
+export type TaxChildcareChatInput = z.infer<typeof TaxChildcareChatInputSchema>;
+
+export const TaxChildcareChatOutputSchema = z.object({
+  answer: z.string().describe("The AI's next question or final JSON object."),
+});
+export type TaxChildcareChatOutput = z.infer<typeof TaxChildcareChatOutputSchema>;
