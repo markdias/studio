@@ -100,6 +100,10 @@ export const ChildcareAdviceInputSchema = z.object({
 export type ChildcareAdviceInput = z.infer<typeof ChildcareAdviceInputSchema>;
 
 export const ChildcareAdviceOutputSchema = z.object({
-  analysis: z.string().describe('A detailed analysis of the user\'s financial situation, including calculated childcare costs, the impact of the personal allowance taper, and suggested strategies like increasing pension contributions or using salary sacrifice to optimize their finances.'),
+  costSummary: z.string().describe('A summary of the calculated weekly and annual childcare costs.'),
+  incomeAnalysis: z.string().describe('An analysis of the user\'s adjusted net income and the impact on their personal tax allowance.'),
+  optimizationStrategies: z.string().describe('Suggested strategies to optimize finances, such as increasing pension contributions.'),
+  summary: z.string().describe('A final, clear summary of the situation and recommended actions.'),
+  suggestedPensionContributionPercentage: z.number().optional().describe('If applicable, the suggested new pension contribution percentage to bring adjusted net income to £100,000.'),
 });
 export type ChildcareAdviceOutput = z.infer<typeof ChildcareAdviceOutputSchema>;

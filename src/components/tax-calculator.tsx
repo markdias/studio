@@ -40,7 +40,7 @@ import {
 import { PieChart, Pie, Cell } from "recharts";
 import { Separator } from "@/components/ui/separator";
 
-import { taxCalculatorSchema, type TaxCalculatorSchema, type CalculationResults, regions, months, taxYears } from "@/lib/definitions";
+import { taxCalculatorSchema, type TaxCalculatorSchema, type CalculationResults, regions, months, taxYears, type ChildcareAdviceOutput } from "@/lib/definitions";
 import { calculateTakeHomePay } from "@/lib/tax-logic";
 import { generateTaxSavingTipsAction, generateChildcareAdviceAction } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
@@ -74,7 +74,7 @@ export default function TaxCalculator() {
   const [results, setResults] = useState<CalculationResults | null>(null);
   const [aiTips, setAiTips] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [childcareAdvice, setChildcareAdvice] = useState<string>("");
+  const [childcareAdvice, setChildcareAdvice] = useState<ChildcareAdviceOutput | null>(null);
   const [isGeneratingChildcareAdvice, setIsGeneratingChildcareAdvice] = useState(false);
 
 
@@ -122,8 +122,15 @@ export default function TaxCalculator() {
     const { salary, bonus, pensionContribution, isBonusPensionable, pensionableBonusPercentage } = parsed.data;
     
     // This calculation must match the main tax logic
+    const payRiseMonthIndex = parsed.data.hasPayRise ? months.indexOf(parsed.data.payRiseMonth) : 12;
+    let annualSalary = parsed.data.salary;
+    if (parsed.data.hasPayRise && parsed.data.newSalary) {
+      const monthsAtOldSalary = payRiseMonthIndex;
+      const monthsAtNewSalary = 12 - payRiseMonthIndex;
+      annualSalary = (parsed.data.salary / 12 * monthsAtOldSalary) + (parsed.data.newSalary / 12 * monthsAtNewSalary);
+    }
     const pensionableBonus = isBonusPensionable && bonus ? bonus * (pensionableBonusPercentage / 100) : 0;
-    const totalPensionableIncome = salary + pensionableBonus;
+    const totalPensionableIncome = annualSalary + pensionableBonus;
     const pensionAmount = totalPensionableIncome * (pensionContribution / 100);
 
     const actionResult = await generateTaxSavingTipsAction({
@@ -168,7 +175,7 @@ export default function TaxCalculator() {
     }
 
     setIsGeneratingChildcareAdvice(true);
-    setChildcareAdvice("");
+    setChildcareAdvice(null);
 
     const actionResult = await generateChildcareAdviceAction({
       annualGrossIncome: results?.grossAnnualIncome ?? parsed.data.salary,
@@ -179,7 +186,7 @@ export default function TaxCalculator() {
     });
 
     if (actionResult.success && actionResult.data) {
-      setChildcareAdvice(actionResult.data.analysis);
+      setChildcareAdvice(actionResult.data);
     } else {
       toast({
         title: "Error",
@@ -665,21 +672,57 @@ export default function TaxCalculator() {
                     <CardTitle className="font-headline flex items-center gap-2"><Baby className="text-accent" />AI Childcare &amp; Salary Sacrifice Advisor</CardTitle>
                     <CardDescription>Analyze childcare costs and get advice on managing the £100k income threshold.</CardDescription>
                 </CardHeader>
-                <CardContent className="min-h-[100px] text-sm">
+                <CardContent className="min-h-[100px] text-sm space-y-4">
                     {isGeneratingChildcareAdvice ? (
                         <div className="flex items-center justify-center h-full">
                             <Loader2 className="h-8 w-8 animate-spin text-primary" />
                         </div>
                     ) : childcareAdvice ? (
-                        <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: childcareAdvice.replace(/\n/g, '<br />') }} />
+                        <div className="space-y-4">
+                            <div>
+                              <h4 className="font-semibold mb-2">Childcare Cost Summary</h4>
+                              <p>{childcareAdvice.costSummary}</p>
+                            </div>
+                             <div>
+                              <h4 className="font-semibold mb-2">Income & Tax Allowance Analysis</h4>
+                              <p>{childcareAdvice.incomeAnalysis}</p>
+                            </div>
+                            <div>
+                              <h4 className="font-semibold mb-2">Optimization Strategies</h4>
+                              <p>{childcareAdvice.optimizationStrategies}</p>
+                            </div>
+                             <div>
+                              <h4 className="font-semibold mb-2">Summary</h4>
+                              <p>{childcareAdvice.summary}</p>
+                            </div>
+                        </div>
                     ) : (
                         <p className="text-muted-foreground">Fill in the childcare details and click the button to generate advice.</p>
                     )}
                 </CardContent>
-                <CardFooter>
+                <CardFooter className="flex flex-col items-start gap-4">
                     <Button onClick={handleGenerateChildcareAdvice} disabled={isGeneratingChildcareAdvice || (watchedValues.numberOfChildren ?? 0) <= 0}>
                         {isGeneratingChildcareAdvice ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Analyzing...</> : "Analyze Childcare Costs"}
                     </Button>
+                    {childcareAdvice && childcareAdvice.suggestedPensionContributionPercentage && (
+                      <div className="rounded-md border p-4 w-full bg-secondary/50">
+                        <p className="text-sm font-medium mb-2">
+                          To reduce your adjusted net income to £100,000, the AI suggests increasing your pension contribution to <strong>{childcareAdvice.suggestedPensionContributionPercentage}%</strong>.
+                        </p>
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            form.setValue('pensionContribution', childcareAdvice.suggestedPensionContributionPercentage!, { shouldValidate: true });
+                             toast({
+                              title: "Pension Updated",
+                              description: `Your pension contribution has been set to ${childcareAdvice.suggestedPensionContributionPercentage}%.`,
+                            });
+                          }}
+                        >
+                          Apply Suggestion
+                        </Button>
+                      </div>
+                    )}
                 </CardFooter>
             </Card>
 

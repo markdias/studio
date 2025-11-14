@@ -34,30 +34,29 @@ Here is the user's data:
 - Days per week in childcare (per child): {{daysPerWeekInChildcare}}
 - Daily childcare rate (per child): £{{dailyChildcareRate}}
 
-Perform the following steps and generate a concise analysis. Use Markdown for formatting, including headings and bullet points.
+Perform the following steps and generate a concise analysis for each field in the output schema.
 
 1.  **Calculate Childcare Costs:**
     - Calculate the weekly and annual childcare cost for all children. Assume 52 weeks in a year.
+    - Populate the \`costSummary\` field with a sentence summarizing these costs.
 
 2.  **Analyze Adjusted Net Income:**
     - Calculate the user's 'Adjusted Net Income'. This is Gross Income minus pension contributions.
     - Explain the £100,000 personal allowance taper: for every £2 of income over £100,000, the personal allowance is reduced by £1. Also mention that eligibility for tax-free childcare is lost if adjusted net income is over £100,000.
     - State the user's current adjusted net income and the impact on their personal allowance.
+    - Populate the \`incomeAnalysis\` field with this information.
 
 3.  **Provide Optimization Strategies:**
     - If the user's adjusted net income is over £100,000, calculate the exact amount they need to reduce their income by to get back to £100,000.
-    - Suggest increasing their pension contribution as a primary strategy. Calculate the new total pension contribution amount and the new percentage required to bring their adjusted net income down to £100,000.
-    - Briefly mention salary sacrifice schemes as another effective method if available through their employer.
+    - Suggest increasing their pension contribution as a primary strategy. Calculate the new total pension contribution amount and the new percentage required to bring their adjusted net income down to £100,000. Round the final percentage to the nearest whole number.
+    - Populate the \`optimizationStrategies\` field with this advice.
+    - **Crucially, populate the \`suggestedPensionContributionPercentage\` field with the calculated new percentage if an adjustment is needed. If no adjustment is needed, do not include this field.**
 
 4.  **Summarize and Conclude:**
     - Provide a clear, simple summary of the situation and the recommended actions.
-    - Keep the tone helpful and easy to understand.
-
-Structure your output under the following headings:
-- Childcare Cost Summary
-- Income & Tax Allowance Analysis
-- Optimization Strategies
-- Summary
+    - Populate the \`summary\` field.
+    
+Keep the tone helpful and easy to understand. Do not use Markdown or complex formatting in the output strings.
 `,
 });
 
