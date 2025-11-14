@@ -91,7 +91,8 @@ export type TaxSavingTipsOutput = z.infer<typeof TaxSavingTipsOutputSchema>;
 
 
 export const ChildcareAdviceInputSchema = z.object({
-  annualGrossIncome: z.number().describe('The user\'s total annual gross income, including salary and any bonuses.'),
+  annualGrossIncome: z.number().describe("The user's total annual gross income from salary and any bonuses."),
+  taxableBenefits: z.number().describe("The annual value of any taxable benefits (e.g. company car, private medical)."),
   pensionContributionPercentage: z.number().describe('The percentage of income the user contributes to their pension.'),
   numberOfChildren: z.number().describe('The number of children the user has in childcare.'),
   daysPerWeekInChildcare: z.number().describe('The number of days per week a single child attends childcare.'),
@@ -102,7 +103,7 @@ export type ChildcareAdviceInput = z.infer<typeof ChildcareAdviceInputSchema>;
 
 export const ChildcareAdviceOutputSchema = z.object({
   costSummary: z.string().describe('A summary of the calculated weekly and annual childcare costs.'),
-  incomeAnalysis: z.string().describe('An analysis of the user\'s adjusted net income and the impact on their personal tax allowance.'),
+  incomeAnalysis: z.string().describe("An analysis of the user's adjusted net income and the impact on their personal tax allowance."),
   optimizationStrategies: z.string().describe('Suggested strategies to optimize finances, such as increasing pension contributions.'),
   summary: z.string().describe('A final, clear summary of the situation and recommended actions.'),
   suggestedPensionContributionPercentage: z.number().optional().describe('If applicable, the suggested new pension contribution percentage to bring adjusted net income to £100,000.'),
@@ -145,6 +146,6 @@ export const FinancialChatInputSchema = z.object({
 export type FinancialChatInput = z.infer<typeof FinancialChatInputSchema>;
 
 export const FinancialChatOutputSchema = z.object({
-  answer: z.string().describe('The AI\'s answer to the user\'s question.'),
+  answer: z.string().describe("The AI's answer to the user's question."),
 });
 export type FinancialChatOutput = z.infer<typeof FinancialChatOutputSchema>;

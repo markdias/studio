@@ -131,8 +131,6 @@ export default function TaxCalculator() {
   }, [form, isTaxCodeManuallySet]);
   
   useEffect(() => {
-    // This effect runs only when salary changes
-    // It resets the AI chat boxes to their initial state.
     if (taxChatHistory.length > 0) {
       setTaxChatHistory([]);
     }
@@ -178,11 +176,6 @@ export default function TaxCalculator() {
     }
   }, [taxChatHistory]);
 
-  useEffect(() => {
-    if (childcareChatContainerRef.current) {
-      childcareChatContainerRef.current.scrollTop = childcareChatContainerRef.current.scrollHeight;
-    }
-  }, [childcareChatHistory]);
 
    const handleExport = () => {
     const values = form.getValues();
@@ -359,7 +352,8 @@ export default function TaxCalculator() {
     setChildcareChatHistory([]);
 
     const actionResult = await generateChildcareAdviceAction({
-      annualGrossIncome: results?.grossAnnualIncome ?? parsed.data.salary,
+      annualGrossIncome: (results?.grossAnnualIncome ?? parsed.data.salary) - (results?.taxableBenefits ?? 0),
+      taxableBenefits: parsed.data.taxableBenefits,
       pensionContributionPercentage: parsed.data.pensionContribution,
       numberOfChildren: parsed.data.numberOfChildren,
       daysPerWeekInChildcare: parsed.data.daysPerWeekInChildcare,
@@ -380,7 +374,7 @@ ${actionResult.data.incomeAnalysis}
 ${actionResult.data.optimizationStrategies}
 
 **Summary:**
-${actionResult.data.summary}
+${action.data.summary}
       `.trim();
       setChildcareChatHistory([{ role: 'model', content: initialContent }]);
     } else {
@@ -1101,7 +1095,3 @@ ${actionResult.data.summary}
     </FormProvider>
   );
 }
-
-    
-
-    

@@ -29,6 +29,7 @@ const prompt = ai.definePrompt({
 
 Here is the user's data:
 - Annual Gross Income: £{{annualGrossIncome}}
+- Annual Taxable Benefits: £{{taxableBenefits}}
 - Pension Contribution: {{pensionContributionPercentage}}%
 - Number of Children: {{numberOfChildren}}
 - Days per week in childcare (per child): {{daysPerWeekInChildcare}}
@@ -43,7 +44,7 @@ Perform a detailed analysis and generate a concise summary for each field in the
     - Populate the \`costSummary\` field.
 
 2.  **Adjusted Net Income Analysis:**
-    - Calculate the user's 'Adjusted Net Income' (Gross Income - Pension Contributions).
+    - Calculate the user's 'Adjusted Net Income' which is (Gross Income + Taxable Benefits - Pension Contributions).
     - Explain the two main consequences of having an adjusted net income over £100,000:
         a) The personal allowance of £12,570 is tapered away by £1 for every £2 of income over £100,000.
         b) Eligibility for Tax-Free Childcare (worth up to £2,000 per child per year) and potentially 15/30 hours of free childcare is lost.
@@ -54,7 +55,7 @@ Perform a detailed analysis and generate a concise summary for each field in the
     - **If the user's adjusted net income is NOT over £100,000:** State that no adjustments are needed and that this is a great position to be in. Populate \`optimizationStrategies\` with this message.
     - **If the user's adjusted net income IS over £100,000:**
         a. **Calculate the Sacrifice:** Determine the exact amount they need to reduce their income by to get back to £100,000.
-        b. **Suggest Pension Increase:** Propose increasing their pension contribution as the primary method. Calculate the new total annual pension contribution and the new percentage required. Round the final percentage to the nearest whole number.
+        b. **Suggest Pension Increase:** Propose increasing their pension contribution as the primary method. The pension contribution is based on the gross income only (not including taxable benefits). Calculate the new total annual pension contribution needed. Then, calculate the new percentage of gross income required to meet this contribution. Round the final percentage to the nearest whole number.
         c. **Calculate Tax Saved:** Calculate the income tax saved by regaining the full £12,570 personal allowance. Assume a 40% tax rate on this recovered allowance for simplicity (£12,570 * 0.40 = £5,028).
         d. **Calculate Childcare Savings:** State the value of regaining Tax-Free Childcare, which is £2,000 per child, up to a maximum of 4 children.
         e. **Summarize the Trade-Off:** Explain that while increasing their pension will reduce their monthly take-home pay, the combined annual savings from tax and childcare are substantial. Calculate the total annual benefit (Tax Saved + Childcare Savings).
