@@ -53,6 +53,7 @@ export interface CalculationResults {
   annualTax: number;
   annualNic: number;
   annualPension: number;
+  personalAllowance: number;
   effectiveTaxRate: number;
   breakdown: { name: string; value: number; fill: string }[];
   monthlyBreakdown: MonthlyResult[];

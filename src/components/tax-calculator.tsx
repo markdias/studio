@@ -424,7 +424,6 @@ export default function TaxCalculator() {
                                 <div className="grid grid-cols-2 gap-4 text-sm">
                                     <div className="text-right">
                                         <p className="text-muted-foreground">Gross Pay</p>
-                                        <p className="font-semibold text-muted-foreground">Taxable Income</p>
                                         <p className="text-muted-foreground">Take-Home</p>
                                         <p className="text-muted-foreground">Income Tax</p>
                                         <p className="text-muted-foreground">Nat. Ins.</p>
@@ -432,7 +431,6 @@ export default function TaxCalculator() {
                                     </div>
                                     <div>
                                         <p className="font-semibold">{formatCurrency(results.grossAnnualIncome)}</p>
-                                        <p className="font-bold">{formatCurrency(results.annualTaxableIncome)}</p>
                                         <p className="font-semibold">{formatCurrency(results.annualTakeHome)}</p>
                                         <p className="font-semibold">{formatCurrency(results.annualTax)}</p>
                                         <p className="font-semibold">{formatCurrency(results.annualNic)}</p>
@@ -440,9 +438,26 @@ export default function TaxCalculator() {
                                     </div>
                                 </div>
                                 <Separator />
-                                <div>
-                                    <p className="text-sm text-muted-foreground">Effective Tax Rate (Annual)</p>
-                                    <p className="text-lg font-semibold">{results.effectiveTaxRate.toFixed(2)}%</p>
+                                <div className="space-y-2">
+                                  <h4 className="font-semibold">Taxable Income Breakdown</h4>
+                                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm rounded-md border p-2">
+                                      <div className="text-right text-muted-foreground">Gross Pay:</div>
+                                      <div>{formatCurrency(results.grossAnnualIncome)}</div>
+
+                                      <div className="text-right text-muted-foreground">Taxable Benefits:</div>
+                                      <div>+ {formatCurrency(watchedValues.taxableBenefits ?? 0)}</div>
+
+                                      <div className="text-right text-muted-foreground">Pension:</div>
+                                      <div>- {formatCurrency(results.annualPension)}</div>
+
+                                      <div className="text-right text-muted-foreground">Personal Allowance:</div>
+                                      <div>- {formatCurrency(results.personalAllowance)}</div>
+                                      
+                                      <div className="col-span-2"><Separator className="my-1"/></div>
+                                      
+                                      <div className="text-right font-bold">Taxable Income:</div>
+                                      <div className="font-bold">{formatCurrency(results.annualTaxableIncome)}</div>
+                                  </div>
                                 </div>
                             </div>
                             <div className="min-h-[250px]">
