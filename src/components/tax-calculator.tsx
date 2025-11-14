@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -29,7 +30,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertTriangle, Lightbulb, Loader2, CalendarIcon, Baby } from "lucide-react";
+import { AlertTriangle, Lightbulb, Loader2, CalendarIcon, Baby, Send } from "lucide-react";
 import {
   ChartContainer,
   ChartTooltip,
@@ -39,10 +40,11 @@ import {
 } from "@/components/ui/chart";
 import { PieChart, Pie, Cell } from "recharts";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 
-import { taxCalculatorSchema, type TaxCalculatorSchema, type CalculationResults, regions, months, taxYears, type ChildcareAdviceOutput } from "@/lib/definitions";
+import { taxCalculatorSchema, type TaxCalculatorSchema, type CalculationResults, regions, months, taxYears, type ChildcareAdviceOutput, ChatMessage } from "@/lib/definitions";
 import { calculateTakeHomePay } from "@/lib/tax-logic";
-import { generateTaxSavingTipsAction, generateChildcareAdviceAction } from "@/app/actions";
+import { generateTaxSavingTipsAction, generateChildcareAdviceAction, financialChatAction } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { Slider } from "@/components/ui/slider";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -72,10 +74,18 @@ const initialValues: TaxCalculatorSchema = {
 export default function TaxCalculator() {
   const { toast } = useToast();
   const [results, setResults] = useState<CalculationResults | null>(null);
-  const [aiTips, setAiTips] = useState<string>("");
-  const [isGenerating, setIsGenerating] = useState(false);
+  
+  const [taxChatHistory, setTaxChatHistory] = useState<ChatMessage[]>([]);
+  const [taxChatInput, setTaxChatInput] = useState("");
+  const [isTaxChatLoading, setIsTaxChatLoading] = useState(false);
+
   const [childcareAdvice, setChildcareAdvice] = useState<ChildcareAdviceOutput | null>(null);
-  const [isGeneratingChildcareAdvice, setIsGeneratingChildcareAdvice] = useState(false);
+  const [childcareChatHistory, setChildcareChatHistory] = useState<ChatMessage[]>([]);
+  const [childcareChatInput, setChildcareChatInput] = useState("");
+  const [isChildcareChatLoading, setIsChildcareChatLoading] = useState(false);
+
+  const taxChatContainerRef = useRef<HTMLDivElement>(null);
+  const childcareChatContainerRef = useRef<HTMLDivElement>(null);
 
 
   const form = useForm<TaxCalculatorSchema>({
@@ -103,8 +113,40 @@ export default function TaxCalculator() {
     return () => subscription.unsubscribe();
   }, [form]);
 
+  useEffect(() => {
+    if (taxChatContainerRef.current) {
+      taxChatContainerRef.current.scrollTop = taxChatContainerRef.current.scrollHeight;
+    }
+  }, [taxChatHistory]);
 
-  const handleGenerateTips = async () => {
+  useEffect(() => {
+    if (childcareChatContainerRef.current) {
+      childcareChatContainerRef.current.scrollTop = childcareChatContainerRef.current.scrollHeight;
+    }
+  }, [childcareChatHistory]);
+
+
+  const getFinancialContext = () => {
+    const values = form.getValues();
+    return {
+      taxYear: values.taxYear,
+      salary: values.salary,
+      bonus: values.bonus,
+      pensionContribution: values.pensionContribution,
+      region: values.region,
+      taxCode: values.taxCode,
+      taxableBenefits: values.taxableBenefits,
+      annualGrossIncome: results?.grossAnnualIncome,
+      annualTaxableIncome: results?.annualTaxableIncome,
+      annualTakeHome: results?.annualTakeHome,
+      annualTax: results?.annualTax,
+      annualNic: results?.annualNic,
+      annualPension: results?.annualPension,
+      personalAllowance: results?.personalAllowance,
+    };
+  }
+
+  const handleGenerateInitialTips = async () => {
     const values = form.getValues();
     const parsed = taxCalculatorSchema.safeParse(values);
     if (!parsed.success) {
@@ -116,21 +158,13 @@ export default function TaxCalculator() {
       return;
     }
 
-    setIsGenerating(true);
-    setAiTips("");
+    setIsTaxChatLoading(true);
+    setTaxChatHistory([]);
 
-    const { salary, bonus, pensionContribution, taxableBenefits, region, hasPayRise, newSalary, payRiseMonth, isBonusPensionable, pensionableBonusPercentage } = parsed.data;
-    
-    // This calculation must match the main tax logic
-    const payRiseMonthIndex = hasPayRise ? months.indexOf(payRiseMonth) : 12;
-    let annualSalary = salary;
-    if (hasPayRise && newSalary) {
-      const monthsAtOldSalary = payRiseMonthIndex;
-      const monthsAtNewSalary = 12 - payRiseMonthIndex;
-      annualSalary = (salary / 12 * monthsAtOldSalary) + (newSalary / 12 * monthsAtNewSalary);
-    }
+    const { salary, bonus, pensionContribution, taxableBenefits, region, isBonusPensionable, pensionableBonusPercentage } = parsed.data;
+
     const pensionableBonus = isBonusPensionable && bonus ? bonus * (pensionableBonusPercentage / 100) : 0;
-    const totalPensionableIncome = annualSalary + pensionableBonus;
+    const totalPensionableIncome = salary + pensionableBonus;
     const pensionAmount = totalPensionableIncome * (pensionContribution / 100);
 
     const actionResult = await generateTaxSavingTipsAction({
@@ -142,7 +176,7 @@ export default function TaxCalculator() {
     });
 
     if (actionResult.success && actionResult.data) {
-      setAiTips(actionResult.data.tips);
+      setTaxChatHistory([{ role: 'model', content: actionResult.data.tips }]);
     } else {
       toast({
         title: "Error",
@@ -151,8 +185,31 @@ export default function TaxCalculator() {
       });
     }
 
-    setIsGenerating(false);
+    setIsTaxChatLoading(false);
   };
+
+  const handleTaxChatSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!taxChatInput.trim()) return;
+
+    const newHistory: ChatMessage[] = [...taxChatHistory, { role: 'user', content: taxChatInput }];
+    setTaxChatHistory(newHistory);
+    setTaxChatInput("");
+    setIsTaxChatLoading(true);
+
+    const actionResult = await financialChatAction({
+      financialContext: getFinancialContext(),
+      history: newHistory,
+      question: taxChatInput,
+    });
+
+    if (actionResult.success && actionResult.data) {
+      setTaxChatHistory(prev => [...prev, { role: 'model', content: actionResult.data.answer }]);
+    } else {
+      setTaxChatHistory(prev => [...prev, { role: 'model', content: `Sorry, I ran into an error: ${actionResult.error}` }]);
+    }
+    setIsTaxChatLoading(false);
+  }
 
   const handleGenerateChildcareAdvice = async () => {
     const values = form.getValues();
@@ -174,8 +231,9 @@ export default function TaxCalculator() {
       return;
     }
 
-    setIsGeneratingChildcareAdvice(true);
+    setIsChildcareChatLoading(true);
     setChildcareAdvice(null);
+    setChildcareChatHistory([]);
 
     const actionResult = await generateChildcareAdviceAction({
       annualGrossIncome: results?.grossAnnualIncome ?? parsed.data.salary,
@@ -187,6 +245,20 @@ export default function TaxCalculator() {
 
     if (actionResult.success && actionResult.data) {
       setChildcareAdvice(actionResult.data);
+      const initialContent = `
+**Childcare Cost Summary:**
+${actionResult.data.costSummary}
+
+**Income & Tax Allowance Analysis:**
+${actionResult.data.incomeAnalysis}
+
+**Optimization Strategies:**
+${actionResult.data.optimizationStrategies}
+
+**Summary:**
+${actionResult.data.summary}
+      `.trim();
+      setChildcareChatHistory([{ role: 'model', content: initialContent }]);
     } else {
       toast({
         title: "Error",
@@ -195,8 +267,31 @@ export default function TaxCalculator() {
       });
     }
 
-    setIsGeneratingChildcareAdvice(false);
+    setIsChildcareChatLoading(false);
   };
+
+  const handleChildcareChatSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!childcareChatInput.trim()) return;
+
+    const newHistory: ChatMessage[] = [...childcareChatHistory, { role: 'user', content: childcareChatInput }];
+    setChildcareChatHistory(newHistory);
+    setChildcareChatInput("");
+    setIsChildcareChatLoading(true);
+
+    const actionResult = await financialChatAction({
+      financialContext: getFinancialContext(),
+      history: newHistory,
+      question: childcareChatInput,
+    });
+
+    if (actionResult.success && actionResult.data) {
+      setChildcareChatHistory(prev => [...prev, { role: 'model', content: actionResult.data.answer }]);
+    } else {
+      setChildcareChatHistory(prev => [...prev, { role: 'model', content: `Sorry, I ran into an error: ${actionResult.error}` }]);
+    }
+    setIsChildcareChatLoading(false);
+  }
   
   
   const chartConfig = useMemo(() => {
@@ -647,63 +742,119 @@ export default function TaxCalculator() {
             <Card>
                 <CardHeader>
                     <CardTitle className="font-headline flex items-center gap-2"><Lightbulb className="text-accent" />AI Tax Advisor</CardTitle>
-                    <CardDescription>Get personalized tips to potentially reduce your taxable income.</CardDescription>
+                    <CardDescription>Get personalized tips and ask follow-up questions.</CardDescription>
                 </CardHeader>
-                <CardContent className="min-h-[100px] text-sm">
-                    {isGenerating ? (
-                        <div className="flex items-center justify-center h-full">
-                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                        </div>
-                    ) : aiTips ? (
-                        <p className="whitespace-pre-wrap">{aiTips}</p>
+                <CardContent className="text-sm">
+                    <div ref={taxChatContainerRef} className="h-64 overflow-y-auto p-4 border rounded-md mb-4 bg-muted/20 space-y-4">
+                        {isTaxChatLoading && taxChatHistory.length === 0 ? (
+                            <div className="flex items-center justify-center h-full">
+                                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                            </div>
+                        ) : taxChatHistory.length === 0 ? (
+                            <p className="text-muted-foreground text-center">Click the button below to generate your initial tax-saving tips.</p>
+                        ) : (
+                            taxChatHistory.map((msg, index) => (
+                                <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                    <div className={`p-3 rounded-lg max-w-sm ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>
+                                        <p className="whitespace-pre-wrap">{msg.content}</p>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                        {isTaxChatLoading && taxChatHistory.length > 0 && (
+                             <div className="flex justify-start">
+                                <div className="p-3 rounded-lg bg-secondary">
+                                    <Loader2 className="h-5 w-5 animate-spin" />
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    {taxChatHistory.length === 0 ? (
+                        <Button onClick={handleGenerateInitialTips} disabled={isTaxChatLoading}>
+                            {isTaxChatLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating...</> : "Generate Tax Saving Tips"}
+                        </Button>
                     ) : (
-                        <p className="text-muted-foreground">Click the button below to generate your tax-saving tips.</p>
+                        <form onSubmit={handleTaxChatSubmit} className="flex gap-2">
+                            <Textarea
+                                placeholder="Ask a follow-up question..."
+                                value={taxChatInput}
+                                onChange={(e) => setTaxChatInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault();
+                                    handleTaxChatSubmit(e as any);
+                                  }
+                                }}
+                                disabled={isTaxChatLoading}
+                                rows={1}
+                                className="flex-grow resize-none"
+                            />
+                            <Button type="submit" disabled={isTaxChatLoading || !taxChatInput.trim()} size="icon">
+                                <Send />
+                            </Button>
+                        </form>
                     )}
                 </CardContent>
-                <CardFooter>
-                    <Button onClick={handleGenerateTips} disabled={isGenerating}>
-                        {isGenerating ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating...</> : "Generate Tax Saving Tips"}
-                    </Button>
-                </CardFooter>
             </Card>
 
              <Card>
                 <CardHeader>
                     <CardTitle className="font-headline flex items-center gap-2"><Baby className="text-accent" />AI Childcare &amp; Salary Sacrifice Advisor</CardTitle>
-                    <CardDescription>Analyze childcare costs and get advice on managing the £100k income threshold.</CardDescription>
+                    <CardDescription>Analyze costs and ask questions about managing the £100k income threshold.</CardDescription>
                 </CardHeader>
-                <CardContent className="min-h-[100px] text-sm space-y-4">
-                    {isGeneratingChildcareAdvice ? (
-                        <div className="flex items-center justify-center h-full">
-                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                        </div>
-                    ) : childcareAdvice ? (
-                        <div className="space-y-4">
-                            <div>
-                              <h4 className="font-semibold mb-2">Childcare Cost Summary</h4>
-                              <p>{childcareAdvice.costSummary}</p>
+                <CardContent className="text-sm">
+                   <div ref={childcareChatContainerRef} className="h-64 overflow-y-auto p-4 border rounded-md mb-4 bg-muted/20 space-y-4">
+                        {isChildcareChatLoading && childcareChatHistory.length === 0 ? (
+                            <div className="flex items-center justify-center h-full">
+                                <Loader2 className="h-8 w-8 animate-spin text-primary" />
                             </div>
-                             <div>
-                              <h4 className="font-semibold mb-2">Income &amp; Tax Allowance Analysis</h4>
-                              <p>{childcareAdvice.incomeAnalysis}</p>
+                        ) : childcareChatHistory.length === 0 ? (
+                            <p className="text-muted-foreground text-center">Fill in childcare details and click below to generate advice.</p>
+                        ) : (
+                            childcareChatHistory.map((msg, index) => (
+                                <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                    <div className={`p-3 rounded-lg max-w-md ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>
+                                        <p className="whitespace-pre-wrap">{msg.content.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>')
+                                            .split('\n').map((line, i) => <span key={i}>{line}<br/></span>)}</p>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                        {isChildcareChatLoading && childcareChatHistory.length > 0 && (
+                             <div className="flex justify-start">
+                                <div className="p-3 rounded-lg bg-secondary">
+                                    <Loader2 className="h-5 w-5 animate-spin" />
+                                </div>
                             </div>
-                            <div>
-                              <h4 className="font-semibold mb-2">Optimization Strategies</h4>
-                              <p>{childcareAdvice.optimizationStrategies}</p>
-                            </div>
-                             <div>
-                              <h4 className="font-semibold mb-2">Summary</h4>
-                              <p>{childcareAdvice.summary}</p>
-                            </div>
-                        </div>
-                    ) : (
-                        <p className="text-muted-foreground">Fill in the childcare details and click the button to generate advice.</p>
-                    )}
+                        )}
+                    </div>
+                     {childcareChatHistory.length === 0 ? (
+                        <Button onClick={handleGenerateChildcareAdvice} disabled={isChildcareChatLoading || (watchedValues.numberOfChildren ?? 0) <= 0}>
+                            {isChildcareChatLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Analyzing...</> : "Analyze Childcare Costs"}
+                        </Button>
+                     ) : (
+                        <form onSubmit={handleChildcareChatSubmit} className="flex gap-2">
+                             <Textarea
+                                placeholder="Ask a follow-up question..."
+                                value={childcareChatInput}
+                                onChange={(e) => setChildcareChatInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault();
+                                    handleChildcareChatSubmit(e as any);
+                                  }
+                                }}
+                                disabled={isChildcareChatLoading}
+                                rows={1}
+                                className="flex-grow resize-none"
+                            />
+                            <Button type="submit" disabled={isChildcareChatLoading || !childcareChatInput.trim()} size="icon">
+                                <Send />
+                            </Button>
+                        </form>
+                     )}
                 </CardContent>
                 <CardFooter className="flex flex-col items-start gap-4">
-                    <Button onClick={handleGenerateChildcareAdvice} disabled={isGeneratingChildcareAdvice || (watchedValues.numberOfChildren ?? 0) <= 0}>
-                        {isGeneratingChildcareAdvice ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Analyzing...</> : "Analyze Childcare Costs"}
-                    </Button>
                     {childcareAdvice && childcareAdvice.suggestedPensionContributionPercentage && (
                       <div className="rounded-md border p-4 w-full bg-secondary/50">
                         <p className="text-sm font-medium mb-2">

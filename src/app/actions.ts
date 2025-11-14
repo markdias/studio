@@ -3,6 +3,7 @@
 
 import { getTaxSavingTips, type TaxSavingTipsInput } from "@/ai/flows/tax-saving-tips";
 import { getChildcareAdvice, type ChildcareAdviceInput } from "@/ai/flows/childcare-advice";
+import { financialChat, type FinancialChatInput } from "@/ai/flows/financial-chat";
 
 export async function generateTaxSavingTipsAction(input: TaxSavingTipsInput) {
   try {
@@ -21,5 +22,15 @@ export async function generateChildcareAdviceAction(input: ChildcareAdviceInput)
   } catch (error) {
     console.error("Error generating childcare advice:", error);
     return { success: false, error: "Failed to generate childcare advice. Please try again." };
+  }
+}
+
+export async function financialChatAction(input: FinancialChatInput) {
+  try {
+    const result = await financialChat(input);
+    return { success: true, data: result };
+  } catch (error) {
+    console.error("Error in financial chat:", error);
+    return { success: false, error: "Failed to get a response from the AI. Please try again." };
   }
 }

@@ -107,3 +107,43 @@ export const ChildcareAdviceOutputSchema = z.object({
   suggestedPensionContributionPercentage: z.number().optional().describe('If applicable, the suggested new pension contribution percentage to bring adjusted net income to £100,000.'),
 });
 export type ChildcareAdviceOutput = z.infer<typeof ChildcareAdviceOutputSchema>;
+
+// Chat Schemas
+export interface ChatMessage {
+  role: 'user' | 'model';
+  content: string;
+}
+
+const FinancialContextSchema = z.object({
+  taxYear: z.string().optional(),
+  salary: z.number().optional(),
+  bonus: z.number().optional(),
+  pensionContribution: z.number().optional(),
+  region: z.string().optional(),
+  taxCode: z.string().optional(),
+  taxableBenefits: z.number().optional(),
+  annualGrossIncome: z.number().optional(),
+  annualTaxableIncome: z.number().optional(),
+  annualTakeHome: z.number().optional(),
+  annualTax: z.number().optional(),
+  annualNic: z.number().optional(),
+  annualPension: z.number().optional(),
+  personalAllowance: z.number().optional(),
+});
+
+const ChatMessageSchema = z.object({
+  role: z.enum(['user', 'model']),
+  content: z.string(),
+});
+
+export const FinancialChatInputSchema = z.object({
+  financialContext: FinancialContextSchema.describe("The user's current financial data from the calculator."),
+  history: z.array(ChatMessageSchema).describe('The history of the conversation so far.'),
+  question: z.string().describe('The latest question from the user.'),
+});
+export type FinancialChatInput = z.infer<typeof FinancialChatInputSchema>;
+
+export const FinancialChatOutputSchema = z.object({
+  answer: z.string().describe('The AI\'s answer to the user\'s question.'),
+});
+export type FinancialChatOutput = z.infer<typeof FinancialChatOutputSchema>;
