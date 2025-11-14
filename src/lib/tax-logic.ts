@@ -27,12 +27,29 @@ const NIC_BANDS = {
   rate2: 0.02,
 };
 
-function calculatePersonalAllowance(adjustedNetIncome: number): number {
-  if (adjustedNetIncome <= PA_TAPER_THRESHOLD) {
+function parseTaxCode(taxCode: string): number {
+    const matches = taxCode.match(/^(\d+)/);
+    if (matches && matches[1]) {
+        return parseInt(matches[1], 10) * 10;
+    }
+    // Basic fallback for non-standard or 'K' codes. This is a simplification.
+    if (taxCode.toUpperCase().startsWith('K')) {
+        return 0; // K codes mean the allowance is negative, treated as 0 here for simplicity.
+    }
+    if (taxCode.toUpperCase() === 'BR' || taxCode.toUpperCase() === 'D0' || taxCode.toUpperCase() === 'D1') {
+        return 0;
+    }
     return PERSONAL_ALLOWANCE_DEFAULT;
+}
+
+
+function calculatePersonalAllowance(adjustedNetIncome: number, taxCode: string): number {
+  const baseAllowance = parseTaxCode(taxCode);
+  if (adjustedNetIncome <= PA_TAPER_THRESHOLD) {
+    return baseAllowance;
   }
   const taperedAmount = Math.max(0, (adjustedNetIncome - PA_TAPER_THRESHOLD) / 2);
-  return Math.max(0, PERSONAL_ALLOWANCE_DEFAULT - taperedAmount);
+  return Math.max(0, baseAllowance - taperedAmount);
 }
 
 function calculateIncomeTax(taxableIncome: number, region: Region): number {
@@ -99,7 +116,7 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
   const annualPension = grossAnnualIncome * (input.pensionContribution / 100);
   
   const adjustedNetIncome = grossAnnualIncome - annualPension;
-  const personalAllowance = calculatePersonalAllowance(grossAnnualIncome);
+  const personalAllowance = calculatePersonalAllowance(grossAnnualIncome, input.taxCode);
   const taxableIncome = Math.max(0, grossAnnualIncome - personalAllowance - annualPension);
   
   const annualTax = calculateIncomeTax(taxableIncome, input.region);
@@ -113,29 +130,47 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
 
   // Monthly breakdown
   const monthlySalary = input.salary / 12;
-  const monthlyTax = annualTax / 12;
-  const monthlyNic = annualNic / 12;
-
+  
+  // A real PAYE system would be cumulative. This is a simplified non-cumulative monthly estimate.
   const monthlyBreakdown: MonthlyResult[] = months.map(month => {
-    const isBonusMonth = month === input.bonusMonth && (input.bonus ?? 0) > 0;
-    const currentMonthGross = monthlySalary + (isBonusMonth ? (input.bonus ?? 0) : 0);
-    const monthlyPensionContribution = currentMonthGross * (input.pensionContribution / 100);
-    
-    // For simplicity in this model, tax and NIC are spread evenly.
-    // A real PAYE system would adjust dynamically.
-    const currentMonthTakeHome = currentMonthGross - monthlyTax - monthlyNic - monthlyPensionContribution;
+      const isBonusMonth = month === input.bonusMonth && (input.bonus ?? 0) > 0;
+      const currentMonthGross = monthlySalary + (isBonusMonth ? (input.bonus ?? 0) : 0);
+      const currentMonthPension = currentMonthGross * (input.pensionContribution / 100);
 
-    return {
-      month,
-      gross: currentMonthGross,
-      pension: monthlyPensionContribution,
-      tax: monthlyTax,
-      nic: monthlyNic,
-      takeHome: currentMonthTakeHome,
-    };
+      const cumulativeGross = (monthlySalary * (months.indexOf(month) + 1)) + (isBonusMonth ? (input.bonus ?? 0) : 0);
+      
+      const cumulativePension = cumulativeGross * (input.pensionContribution / 100);
+      const cumulativeAdjustedNet = cumulativeGross - cumulativePension;
+      
+      const annualisedGross = currentMonthGross * 12; // Simplistic annualisation for allowance calculation
+      const cumulativePersonalAllowance = calculatePersonalAllowance(annualisedGross, input.taxCode) / 12 * (months.indexOf(month) + 1);
+
+      const cumulativeTaxable = Math.max(0, cumulativeGross - cumulativePersonalAllowance - cumulativePension);
+      const cumulativeTax = calculateIncomeTax(cumulativeTaxable, input.region);
+
+      const previousMonthsTax = monthlyBreakdown.reduce((acc, prevMonth) => acc + prevMonth.tax, 0);
+      const currentMonthTax = Math.max(0, cumulativeTax - previousMonthsTax);
+      
+      const cumulativeNic = calculateNIC(cumulativeGross);
+      const previousMonthsNic = monthlyBreakdown.reduce((acc, prevMonth) => acc + prevMonth.nic, 0);
+      const currentMonthNic = Math.max(0, cumulativeNic - previousMonthsNic);
+
+      const currentMonthTakeHome = currentMonthGross - currentMonthTax - currentMonthNic - currentMonthPension;
+
+      return {
+          month,
+          gross: currentMonthGross,
+          pension: currentMonthPension,
+          tax: currentMonthTax,
+          nic: currentMonthNic,
+          takeHome: currentMonthTakeHome,
+      };
   });
-
-  // Recalculate annual take-home from monthly breakdown for accuracy with bonus month
+  
+  // Recalculate annual totals from the more accurate monthly breakdown
+  const accurateAnnualTax = monthlyBreakdown.reduce((acc, month) => acc + month.tax, 0);
+  const accurateAnnualNic = monthlyBreakdown.reduce((acc, month) => acc + month.nic, 0);
+  const accurateAnnualPension = monthlyBreakdown.reduce((acc, month) => acc + month.pension, 0);
   const accurateAnnualTakeHome = monthlyBreakdown.reduce((acc, month) => acc + month.takeHome, 0);
 
   return {
@@ -143,18 +178,18 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
     grossMonthlyIncome: grossAnnualIncome / 12,
     annualTakeHome: accurateAnnualTakeHome,
     monthlyTakeHome: accurateAnnualTakeHome / 12,
-    annualTax,
-    monthlyTax: annualTax / 12,
-    annualNic,
-    monthlyNic: annualNic / 12,
-    annualPension,
-    monthlyPension: annualPension / 12,
-    effectiveTaxRate,
+    annualTax: accurateAnnualTax,
+    monthlyTax: accurateAnnualTax / 12,
+    annualNic: accurateAnnualNic,
+    monthlyNic: accurateAnnualNic / 12,
+    annualPension: accurateAnnualPension,
+    monthlyPension: accurateAnnualPension / 12,
+    effectiveTaxRate: grossAnnualIncome > 0 ? ((accurateAnnualTax + accurateAnnualNic) / grossAnnualIncome) * 100 : 0,
     breakdown: [
       { name: 'Take-Home Pay', value: accurateAnnualTakeHome, fill: 'hsl(var(--chart-1))' },
-      { name: 'Income Tax', value: annualTax, fill: 'hsl(var(--chart-2))' },
-      { name: 'National Insurance', value: annualNic, fill: 'hsl(var(--chart-3))' },
-      { name: 'Pension', value: annualPension, fill: 'hsl(var(--chart-4))' },
+      { name: 'Income Tax', value: accurateAnnualTax, fill: 'hsl(var(--chart-2))' },
+      { name: 'National Insurance', value: accurateAnnualNic, fill: 'hsl(var(--chart-3))' },
+      { name: 'Pension', value: accurateAnnualPension, fill: 'hsl(var(--chart-4))' },
     ],
     monthlyBreakdown,
   };

@@ -16,6 +16,7 @@ export const taxCalculatorSchema = z.object({
   pensionContribution: z.coerce.number().min(0, "Pension contribution cannot be negative.").max(100, "Pension contribution cannot exceed 100%.").optional().default(0),
   region: z.enum(regions).default("England"),
   bonusMonth: z.enum(months).default("April"),
+  taxCode: z.string().default("1257L").describe("The user's tax code, e.g., 1257L"),
 });
 
 export type TaxCalculatorSchema = z.infer<typeof taxCalculatorSchema>;

@@ -54,6 +54,7 @@ const initialValues: TaxCalculatorSchema = {
   pensionContribution: 5,
   region: "England",
   bonusMonth: "April",
+  taxCode: "1257L",
 };
 
 export default function TaxCalculator() {
@@ -153,6 +154,19 @@ export default function TaxCalculator() {
                       <FormLabel>Annual Salary (£)</FormLabel>
                       <FormControl>
                         <Input type="number" placeholder="e.g., 50000" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="taxCode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tax Code</FormLabel>
+                      <FormControl>
+                        <Input type="text" placeholder="e.g., 1257L" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
