@@ -374,7 +374,7 @@ ${actionResult.data.incomeAnalysis}
 ${actionResult.data.optimizationStrategies}
 
 **Summary:**
-${action.data.summary}
+${actionResult.data.summary}
       `.trim();
       setChildcareChatHistory([{ role: 'model', content: initialContent }]);
     } else {
@@ -1095,3 +1095,5 @@ ${action.data.summary}
     </FormProvider>
   );
 }
+
+    
