@@ -49,6 +49,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Slider } from "@/components/ui/slider";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
 const initialValues: TaxCalculatorSchema = {
@@ -789,293 +790,297 @@ ${actionResult.data.summary}
         </Card>
 
         <div className="lg:col-span-3 space-y-8">
-            <Card>
-                <CardHeader>
-                    <CardTitle className="font-headline">Your Annual Results</CardTitle>
-                    <CardDescription>An estimate of your annual take-home pay for tax year {watchedValues.taxYear}.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    {results ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-4">
-                                <div className="text-center">
-                                    <p className="text-sm text-muted-foreground">Annual Take-Home</p>
-                                    <p className="text-4xl font-bold text-primary">{formatCurrency(results.annualTakeHome)}</p>
-                                </div>
-                                <Separator />
-                                <div className="grid grid-cols-2 gap-4 text-sm">
-                                    <div className="text-right">
-                                        <p className="text-muted-foreground">Gross Pay</p>
-                                        <p className="text-muted-foreground">Take-Home</p>
-                                        <p className="text-muted-foreground">Income Tax</p>
-                                        <p className="text-muted-foreground">Nat. Ins.</p>
-                                        <p className="text-muted-foreground">Pension</p>
-                                    </div>
-                                    <div>
-                                        <p className="font-semibold">{formatCurrency(results.grossAnnualIncome)}</p>
-                                        <p className="font-semibold">{formatCurrency(results.annualTakeHome)}</p>
-                                        <p className="font-semibold">{formatCurrency(results.annualTax)}</p>
-                                        <p className="font-semibold">{formatCurrency(results.annualNic)}</p>
-                                        <p className="font-semibold">{formatCurrency(results.annualPension)}</p>
-                                    </div>
-                                </div>
-                                <Separator />
-                                <div className="space-y-2">
-                                  <h4 className="font-semibold">Taxable Income Breakdown</h4>
-                                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm rounded-md border p-2">
-                                      <div className="text-right text-muted-foreground">Gross Pay:</div>
-                                      <div>{formatCurrency(results.grossAnnualIncome)}</div>
-
-                                      <div className="text-right text-muted-foreground">Taxable Benefits:</div>
-                                      <div>+ {formatCurrency(watchedValues.taxableBenefits ?? 0)}</div>
-
-                                      <div className="text-right text-muted-foreground">Pension:</div>
-                                      <div>- {formatCurrency(results.annualPension)}</div>
-
-                                      <div className="text-right text-muted-foreground">Personal Allowance:</div>
-                                      <div>- {formatCurrency(results.personalAllowance)}</div>
-                                      
-                                      <div className="col-span-2"><Separator className="my-1"/></div>
-                                      
-                                      <div className="text-right font-bold">Taxable Income:</div>
-                                      <div className="font-bold">{formatCurrency(results.annualTaxableIncome)}</div>
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+              <Card>
+                  <CardHeader>
+                      <CardTitle className="font-headline">Your Annual Results</CardTitle>
+                      <CardDescription>An estimate of your annual take-home pay for tax year {watchedValues.taxYear}.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                      {results ? (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              <div className="space-y-4">
+                                  <div className="text-center">
+                                      <p className="text-sm text-muted-foreground">Annual Take-Home</p>
+                                      <p className="text-4xl font-bold text-primary">{formatCurrency(results.annualTakeHome)}</p>
                                   </div>
+                                  <Separator />
+                                  <div className="grid grid-cols-2 gap-4 text-sm">
+                                      <div className="text-right">
+                                          <p className="text-muted-foreground">Gross Pay</p>
+                                          <p className="text-muted-foreground">Take-Home</p>
+                                          <p className="text-muted-foreground">Income Tax</p>
+                                          <p className="text-muted-foreground">Nat. Ins.</p>
+                                          <p className="text-muted-foreground">Pension</p>
+                                      </div>
+                                      <div>
+                                          <p className="font-semibold">{formatCurrency(results.grossAnnualIncome)}</p>
+                                          <p className="font-semibold">{formatCurrency(results.annualTakeHome)}</p>
+                                          <p className="font-semibold">{formatCurrency(results.annualTax)}</p>
+                                          <p className="font-semibold">{formatCurrency(results.annualNic)}</p>
+                                          <p className="font-semibold">{formatCurrency(results.annualPension)}</p>
+                                      </div>
+                                  </div>
+                                  <Separator />
+                                  <div className="space-y-2">
+                                    <h4 className="font-semibold">Taxable Income Breakdown</h4>
+                                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm rounded-md border p-2">
+                                        <div className="text-right text-muted-foreground">Gross Pay:</div>
+                                        <div>{formatCurrency(results.grossAnnualIncome)}</div>
+
+                                        <div className="text-right text-muted-foreground">Taxable Benefits:</div>
+                                        <div>+ {formatCurrency(watchedValues.taxableBenefits ?? 0)}</div>
+
+                                        <div className="text-right text-muted-foreground">Pension:</div>
+                                        <div>- {formatCurrency(results.annualPension)}</div>
+
+                                        <div className="text-right text-muted-foreground">Personal Allowance:</div>
+                                        <div>- {formatCurrency(results.personalAllowance)}</div>
+                                        
+                                        <div className="col-span-2"><Separator className="my-1"/></div>
+                                        
+                                        <div className="text-right font-bold">Taxable Income:</div>
+                                        <div className="font-bold">{formatCurrency(results.annualTaxableIncome)}</div>
+                                    </div>
+                                  </div>
+                              </div>
+                              <div className="min-h-[250px]">
+                                  <ChartContainer config={chartConfig} className="w-full h-full">
+                                      <PieChart>
+                                          <ChartTooltip content={<ChartTooltipContent nameKey="name" hideLabel />} />
+                                          <Pie data={results.breakdown} dataKey="value" nameKey="name" innerRadius={60} strokeWidth={5}>
+                                              {results.breakdown.map((entry) => (
+                                                  <Cell key={`cell-${entry.name}`} fill={entry.fill} />
+                                              ))}
+                                          </Pie>
+                                          <ChartLegend content={<ChartLegendContent />} />
+                                      </PieChart>
+                                  </ChartContainer>
+                              </div>
+                          </div>
+                      ) : (
+                          <div className="text-center py-10 text-muted-foreground">
+                              Enter your details to see your results.
+                          </div>
+                      )}
+                  </CardContent>
+                  {results && (results.grossAnnualIncome > 50000 || results.grossAnnualIncome > 100000) && (
+                      <CardFooter className="flex-col items-start gap-4">
+                          {results.grossAnnualIncome > 100000 && (
+                              <Alert variant="destructive">
+                                  <AlertTriangle className="h-4 w-4" />
+                                  <AlertTitle>£100,000 Threshold</AlertTitle>
+                                  <AlertDescription>
+                                      Your personal tax allowance is reduced as your income is over £100,000. This results in an effective marginal tax rate of ~60% on income between £100,000 and £125,140.
+                                  </AlertDescription>
+                              </Alert>
+                          )}
+                          {results.grossAnnualIncome > 50000 && results.grossAnnualIncome < 100000 && (
+                              <Alert>
+                                  <AlertTriangle className="h-4 w-4" />
+                                  <AlertTitle>£50,000 Threshold</AlertTitle>
+                                  <AlertDescription>
+                                      You are in a higher tax bracket and may be subject to the High Income Child Benefit Charge if applicable.
+                                  </AlertDescription>
+                              </Alert>
+                          )}
+                      </CardFooter>
+                  )}
+              </Card>
+
+              {results && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="font-headline flex items-center gap-2"><CalendarIcon className="text-primary h-6 w-6" />Monthly Breakdown</CardTitle>
+                    <CardDescription>A month-by-month view of your estimated earnings and deductions.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="font-semibold">Month</TableHead>
+                          <TableHead className="text-right font-semibold">Gross Pay</TableHead>
+                          <TableHead className="text-right font-semibold">Pension</TableHead>
+                          <TableHead className="text-right font-semibold">Income Tax</TableHead>
+                          <TableHead className="text-right font-semibold">Nat. Ins.</TableHead>
+                          <TableHead className="text-right font-semibold text-primary">Take-Home</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {results.monthlyBreakdown.map((row) => (
+                          <TableRow key={row.month} className={row.gross > (results.grossAnnualIncome / 12) * 1.05 ? "bg-secondary hover:bg-secondary/80 font-semibold" : ""}>
+                            <TableCell>{row.month}</TableCell>
+                            <TableCell className="text-right">{formatCurrency(row.gross)}</TableCell>
+                            <TableCell className="text-right">{formatCurrency(row.pension)}</TableCell>
+                            <TableCell className="text-right">{formatCurrency(row.tax)}</TableCell>
+                            <TableCell className="text-right">{formatCurrency(row.nic)}</TableCell>
+                            <TableCell className="text-right text-primary font-bold">{formatCurrency(row.takeHome)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+
+            <Tabs defaultValue="tax-advisor">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="tax-advisor"><Lightbulb className="text-accent" />AI Tax Advisor</TabsTrigger>
+                <TabsTrigger value="childcare-advisor"><Baby className="text-accent" />AI Childcare Advisor</TabsTrigger>
+              </TabsList>
+              <TabsContent value="tax-advisor">
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="font-headline flex items-center gap-2"><Lightbulb className="text-accent" />AI Tax Advisor</CardTitle>
+                        <CardDescription>Get personalized tips and ask follow-up questions.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="text-sm">
+                        <div ref={taxChatContainerRef} className="h-64 overflow-y-auto p-4 border rounded-md mb-4 bg-muted/20 space-y-4">
+                            {isTaxChatLoading && taxChatHistory.length === 0 ? (
+                                <div className="flex items-center justify-center h-full">
+                                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
                                 </div>
-                            </div>
-                            <div className="min-h-[250px]">
-                                <ChartContainer config={chartConfig} className="w-full h-full">
-                                    <PieChart>
-                                        <ChartTooltip content={<ChartTooltipContent nameKey="name" hideLabel />} />
-                                        <Pie data={results.breakdown} dataKey="value" nameKey="name" innerRadius={60} strokeWidth={5}>
-                                            {results.breakdown.map((entry) => (
-                                                <Cell key={`cell-${entry.name}`} fill={entry.fill} />
-                                            ))}
-                                        </Pie>
-                                        <ChartLegend content={<ChartLegendContent />} />
-                                    </PieChart>
-                                </ChartContainer>
-                            </div>
+                            ) : taxChatHistory.length === 0 ? (
+                                <div className="flex items-center justify-center h-full">
+                                    <div className="text-center text-muted-foreground">
+                                        Click the button to generate your initial tax-saving tips.
+                                    </div>
+                                </div>
+                            ) : (
+                                taxChatHistory.map((msg, index) => (
+                                    <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                        <div className={`p-3 rounded-lg max-w-sm ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>
+                                            <p className="whitespace-pre-wrap">{msg.content}</p>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                            {isTaxChatLoading && taxChatHistory.length > 0 && (
+                                <div className="flex justify-start">
+                                    <div className="p-3 rounded-lg bg-secondary">
+                                        <Loader2 className="h-5 w-5 animate-spin" />
+                                    </div>
+                                </div>
+                            )}
                         </div>
-                    ) : (
-                        <div className="text-center py-10 text-muted-foreground">
-                            Enter your details to see your results.
-                        </div>
-                    )}
-                </CardContent>
-                {results && (results.grossAnnualIncome > 50000 || results.grossAnnualIncome > 100000) && (
-                    <CardFooter className="flex-col items-start gap-4">
-                        {results.grossAnnualIncome > 100000 && (
-                            <Alert variant="destructive">
-                                <AlertTriangle className="h-4 w-4" />
-                                <AlertTitle>£100,000 Threshold</AlertTitle>
-                                <AlertDescription>
-                                    Your personal tax allowance is reduced as your income is over £100,000. This results in an effective marginal tax rate of ~60% on income between £100,000 and £125,140.
-                                </AlertDescription>
-                            </Alert>
+                        {taxChatHistory.length === 0 ? (
+                            <Button onClick={handleGenerateInitialTips} disabled={isTaxChatLoading}>
+                                {isTaxChatLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating...</> : "Generate Tax Saving Tips"}
+                            </Button>
+                        ) : (
+                            <form onSubmit={handleTaxChatSubmit} className="flex gap-2">
+                                <Textarea
+                                    placeholder="Ask a follow-up question..."
+                                    value={taxChatInput}
+                                    onChange={(e) => setTaxChatInput(e.target.value)}
+                                    onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault();
+                                        handleTaxChatSubmit(e as any);
+                                    }
+                                    }}
+                                    disabled={isTaxChatLoading}
+                                    rows={1}
+                                    className="flex-grow resize-none"
+                                />
+                                <Button type="submit" disabled={isTaxChatLoading || !taxChatInput.trim()} size="icon">
+                                    <Send />
+                                </Button>
+                            </form>
                         )}
-                         {results.grossAnnualIncome > 50000 && results.grossAnnualIncome < 100000 && (
-                            <Alert>
-                                <AlertTriangle className="h-4 w-4" />
-                                <AlertTitle>£50,000 Threshold</AlertTitle>
-                                <AlertDescription>
-                                    You are in a higher tax bracket and may be subject to the High Income Child Benefit Charge if applicable.
-                                </AlertDescription>
-                            </Alert>
+                    </CardContent>
+                </Card>
+              </TabsContent>
+               <TabsContent value="childcare-advisor">
+                 <Card>
+                    <CardHeader>
+                        <CardTitle className="font-headline flex items-center gap-2"><Baby className="text-accent" />AI Childcare &amp; Salary Sacrifice Advisor</CardTitle>
+                        <CardDescription>Analyze costs and ask questions about managing the £100k income threshold.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="text-sm">
+                      <div ref={childcareChatContainerRef} className="p-4 border rounded-md mb-4 bg-muted/20 space-y-4 min-h-[16rem]">
+                            {isChildcareChatLoading && childcareChatHistory.length === 0 ? (
+                                <div className="flex items-center justify-center h-full">
+                                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                                </div>
+                            ) : childcareChatHistory.length === 0 ? (
+                                <div className="flex items-center justify-center h-full">
+                                    <div className="text-center text-muted-foreground">
+                                        Fill in childcare details and click below to generate advice.
+                                    </div>
+                                </div>
+                            ) : (
+                                childcareChatHistory.map((msg, index) => (
+                                    <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                        <div className={`p-3 rounded-lg max-w-md ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>
+                                        <div className="whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: renderFormattedText(msg.content) }} />
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                            {isChildcareChatLoading && childcareChatHistory.length > 0 && (
+                                <div className="flex justify-start">
+                                    <div className="p-3 rounded-lg bg-secondary">
+                                        <Loader2 className="h-5 w-5 animate-spin" />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        {childcareChatHistory.length === 0 ? (
+                            <Button onClick={handleGenerateChildcareAdvice} disabled={isChildcareChatLoading || (watchedValues.numberOfChildren ?? 0) <= 0}>
+                                {isChildcareChatLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Analyzing...</> : "Analyze Childcare Costs"}
+                            </Button>
+                        ) : (
+                            <form onSubmit={handleChildcareChatSubmit} className="flex gap-2">
+                                <Textarea
+                                    placeholder="Ask a follow-up question..."
+                                    value={childcareChatInput}
+                                    onChange={(e) => setChildcareChatInput(e.target.value)}
+                                    onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault();
+                                        handleChildcareChatSubmit(e as any);
+                                    }
+                                    }}
+                                    disabled={isChildcareChatLoading}
+                                    rows={1}
+                                    className="flex-grow resize-none"
+                                />
+                                <Button type="submit" disabled={isChildcareChatLoading || !childcareChatInput.trim()} size="icon">
+                                    <Send />
+                                </Button>
+                            </form>
+                        )}
+                    </CardContent>
+                    <CardFooter className="flex flex-col items-start gap-4">
+                        {childcareAdvice && childcareAdvice.suggestedPensionContributionPercentage && (
+                        <div className="rounded-md border p-4 w-full bg-secondary/50">
+                            <p className="text-sm font-medium mb-2">
+                            To reduce your adjusted net income to £100,000, the AI suggests increasing your pension contribution to <strong>{childcareAdvice.suggestedPensionContributionPercentage}%</strong>.
+                            </p>
+                            <Button
+                            size="sm"
+                            onClick={() => {
+                                form.setValue('pensionContribution', childcareAdvice.suggestedPensionContributionPercentage!, { shouldValidate: true });
+                                toast({
+                                title: "Pension Updated",
+                                description: `Your pension contribution has been set to ${childcareAdvice.suggestedPensionContributionPercentage}%.`,
+                                });
+                            }}
+                            >
+                            Apply Suggestion
+                            </Button>
+                        </div>
                         )}
                     </CardFooter>
-                )}
-            </Card>
-
-            {results && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="font-headline flex items-center gap-2"><CalendarIcon className="text-primary h-6 w-6" />Monthly Breakdown</CardTitle>
-                  <CardDescription>A month-by-month view of your estimated earnings and deductions.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="font-semibold">Month</TableHead>
-                        <TableHead className="text-right font-semibold">Gross Pay</TableHead>
-                        <TableHead className="text-right font-semibold">Pension</TableHead>
-                        <TableHead className="text-right font-semibold">Income Tax</TableHead>
-                        <TableHead className="text-right font-semibold">Nat. Ins.</TableHead>
-                        <TableHead className="text-right font-semibold text-primary">Take-Home</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {results.monthlyBreakdown.map((row) => (
-                        <TableRow key={row.month} className={row.gross > (results.grossAnnualIncome / 12) * 1.05 ? "bg-secondary hover:bg-secondary/80 font-semibold" : ""}>
-                          <TableCell>{row.month}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(row.gross)}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(row.pension)}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(row.tax)}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(row.nic)}</TableCell>
-                          <TableCell className="text-right text-primary font-bold">{formatCurrency(row.takeHome)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            )}
-
-            <Card>
-                <CardHeader>
-                    <CardTitle className="font-headline flex items-center gap-2"><Lightbulb className="text-accent" />AI Tax Advisor</CardTitle>
-                    <CardDescription>Get personalized tips and ask follow-up questions.</CardDescription>
-                </CardHeader>
-                <CardContent className="text-sm">
-                    <div ref={taxChatContainerRef} className="h-64 overflow-y-auto p-4 border rounded-md mb-4 bg-muted/20 space-y-4">
-                        {isTaxChatLoading && taxChatHistory.length === 0 ? (
-                            <div className="flex items-center justify-center h-full">
-                                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                            </div>
-                        ) : taxChatHistory.length === 0 ? (
-                            <div className="flex items-center justify-center h-full">
-                                <div className="text-center text-muted-foreground">
-                                    Click the button to generate your initial tax-saving tips.
-                                </div>
-                            </div>
-                        ) : (
-                            taxChatHistory.map((msg, index) => (
-                                <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`p-3 rounded-lg max-w-sm ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>
-                                        <p className="whitespace-pre-wrap">{msg.content}</p>
-                                    </div>
-                                </div>
-                            ))
-                        )}
-                        {isTaxChatLoading && taxChatHistory.length > 0 && (
-                             <div className="flex justify-start">
-                                <div className="p-3 rounded-lg bg-secondary">
-                                    <Loader2 className="h-5 w-5 animate-spin" />
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                    {taxChatHistory.length === 0 ? (
-                        <Button onClick={handleGenerateInitialTips} disabled={isTaxChatLoading}>
-                            {isTaxChatLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating...</> : "Generate Tax Saving Tips"}
-                        </Button>
-                    ) : (
-                        <form onSubmit={handleTaxChatSubmit} className="flex gap-2">
-                            <Textarea
-                                placeholder="Ask a follow-up question..."
-                                value={taxChatInput}
-                                onChange={(e) => setTaxChatInput(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter' && !e.shiftKey) {
-                                    e.preventDefault();
-                                    handleTaxChatSubmit(e as any);
-                                  }
-                                }}
-                                disabled={isTaxChatLoading}
-                                rows={1}
-                                className="flex-grow resize-none"
-                            />
-                            <Button type="submit" disabled={isTaxChatLoading || !taxChatInput.trim()} size="icon">
-                                <Send />
-                            </Button>
-                        </form>
-                    )}
-                </CardContent>
-            </Card>
-
-             <Card>
-                <CardHeader>
-                    <CardTitle className="font-headline flex items-center gap-2"><Baby className="text-accent" />AI Childcare &amp; Salary Sacrifice Advisor</CardTitle>
-                    <CardDescription>Analyze costs and ask questions about managing the £100k income threshold.</CardDescription>
-                </CardHeader>
-                <CardContent className="text-sm">
-                   <div ref={childcareChatContainerRef} className="p-4 border rounded-md mb-4 bg-muted/20 space-y-4">
-                        {isChildcareChatLoading && childcareChatHistory.length === 0 ? (
-                            <div className="flex items-center justify-center">
-                                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                            </div>
-                        ) : childcareChatHistory.length === 0 ? (
-                             <div className="flex items-center justify-center min-h-[14rem]">
-                                <div className="text-center text-muted-foreground">
-                                    Fill in childcare details and click below to generate advice.
-                                </div>
-                            </div>
-                        ) : (
-                            childcareChatHistory.map((msg, index) => (
-                                <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`p-3 rounded-lg max-w-md ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>
-                                       <div className="whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: renderFormattedText(msg.content) }} />
-                                    </div>
-                                </div>
-                            ))
-                        )}
-                        {isChildcareChatLoading && childcareChatHistory.length > 0 && (
-                             <div className="flex justify-start">
-                                <div className="p-3 rounded-lg bg-secondary">
-                                    <Loader2 className="h-5 w-5 animate-spin" />
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                     {childcareChatHistory.length === 0 ? (
-                        <Button onClick={handleGenerateChildcareAdvice} disabled={isChildcareChatLoading || (watchedValues.numberOfChildren ?? 0) <= 0}>
-                            {isChildcareChatLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Analyzing...</> : "Analyze Childcare Costs"}
-                        </Button>
-                     ) : (
-                        <form onSubmit={handleChildcareChatSubmit} className="flex gap-2">
-                             <Textarea
-                                placeholder="Ask a follow-up question..."
-                                value={childcareChatInput}
-                                onChange={(e) => setChildcareChatInput(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter' && !e.shiftKey) {
-                                    e.preventDefault();
-                                    handleChildcareChatSubmit(e as any);
-                                  }
-                                }}
-                                disabled={isChildcareChatLoading}
-                                rows={1}
-                                className="flex-grow resize-none"
-                            />
-                            <Button type="submit" disabled={isChildcareChatLoading || !childcareChatInput.trim()} size="icon">
-                                <Send />
-                            </Button>
-                        </form>
-                     )}
-                </CardContent>
-                <CardFooter className="flex flex-col items-start gap-4">
-                    {childcareAdvice && childcareAdvice.suggestedPensionContributionPercentage && (
-                      <div className="rounded-md border p-4 w-full bg-secondary/50">
-                        <p className="text-sm font-medium mb-2">
-                          To reduce your adjusted net income to £100,000, the AI suggests increasing your pension contribution to <strong>{childcareAdvice.suggestedPensionContributionPercentage}%</strong>.
-                        </p>
-                        <Button
-                          size="sm"
-                          onClick={() => {
-                            form.setValue('pensionContribution', childcareAdvice.suggestedPensionContributionPercentage!, { shouldValidate: true });
-                             toast({
-                              title: "Pension Updated",
-                              description: `Your pension contribution has been set to ${childcareAdvice.suggestedPensionContributionPercentage}%.`,
-                            });
-                          }}
-                        >
-                          Apply Suggestion
-                        </Button>
-                      </div>
-                    )}
-                </CardFooter>
-            </Card>
-
+                </Card>
+              </TabsContent>
+            </Tabs>
         </div>
       </div>
     </FormProvider>
   );
 }
-
-    
-
-    
-
-    
 
     
