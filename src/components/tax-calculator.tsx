@@ -40,7 +40,7 @@ import {
 import { PieChart, Pie, Cell } from "recharts";
 import { Separator } from "@/components/ui/separator";
 
-import { taxCalculatorSchema, type TaxCalculatorSchema, type CalculationResults, regions, months } from "@/lib/definitions";
+import { taxCalculatorSchema, type TaxCalculatorSchema, type CalculationResults, regions, months, taxYears } from "@/lib/definitions";
 import { calculateTakeHomePay } from "@/lib/tax-logic";
 import { generateTaxSavingTipsAction } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
@@ -155,12 +155,36 @@ export default function TaxCalculator() {
           <CardHeader>
             <CardTitle className="font-headline">Your Financial Details</CardTitle>
             <CardDescription>
-              Enter your income details to calculate your take-home pay for the 2024/25 tax year.
+              Enter your income details to calculate your take-home pay.
             </CardDescription>
           </CardHeader>
           <Form {...form}>
             <form>
               <CardContent className="space-y-6">
+                 <FormField
+                  control={form.control}
+                  name="taxYear"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tax Year</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select tax year" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {taxYears.map((year) => (
+                            <SelectItem key={year} value={year}>
+                              {year}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <FormField
                   control={form.control}
                   name="salary"
@@ -525,5 +549,3 @@ export default function TaxCalculator() {
     </FormProvider>
   );
 }
-
-    
