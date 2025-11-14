@@ -53,9 +53,9 @@ const taxYearData = {
     PERSONAL_ALLOWANCE_DEFAULT: 12570,
     PA_TAPER_THRESHOLD: 100000,
     ENGLAND_WALES_NI_BANDS: {
-      basic: { rate: 0.20, threshold: 37700 },
-      higher: { rate: 0.40, threshold: 125140 }, 
-      additional: { rate: 0.45, threshold: Infinity },
+      basic: { rate: 0.20, threshold: 37700 }, // 12571 to 50270
+      higher: { rate: 0.40, threshold: 125140 }, // 50271 to 125140
+      additional: { rate: 0.45, threshold: Infinity }, // above 125140
     },
     SCOTLAND_BANDS: { // Assuming same as 24/25 as not specified
       starter: { rate: 0.19, threshold: 2306 },
@@ -65,9 +65,9 @@ const taxYearData = {
       advanced: { rate: 0.45, threshold: 125140 },
       top: { rate: 0.48, threshold: Infinity },
     },
-    NIC_BANDS: {
-      primaryThreshold: 12570,
-      upperEarningsLimit: 50270,
+    NIC_BANDS: { // Weekly: 0% up to 242, 8% 242.01-967, 2% > 967
+      primaryThreshold: 12584, // 242 * 52
+      upperEarningsLimit: 50284, // 967 * 52
       rate1: 0.08, 
       rate2: 0.02,
     },
@@ -86,12 +86,15 @@ function parseTaxCode(taxCode: string): { personalAllowance: number, isKCode: bo
     if (code.startsWith('K')) {
         const numPart = parseInt(code.substring(1), 10);
         if (!isNaN(numPart)) {
+            // K code effectively adds income to be taxed, not reduces allowance
             return { personalAllowance: - (numPart * 10), isKCode: true };
         }
     }
     
     if (matches && matches[1]) {
-        return { personalAllowance: parseInt(matches[1], 10) * 10, isKCode: false };
+        const num = parseInt(matches[1], 10);
+        // The number in the tax code represents tax-free income / 10
+        return { personalAllowance: num * 10, isKCode: false };
     }
     
     // For codes like BR, D0, D1, or invalid/other codes, there's no personal allowance.
@@ -102,8 +105,8 @@ function calculatePersonalAllowance(adjustedNetIncome: number, taxCode: string, 
   const { PA_TAPER_THRESHOLD } = getTaxYearData(year);
   const { personalAllowance: baseAllowance, isKCode } = parseTaxCode(taxCode);
 
-  // K codes and other 0 allowance codes are not subject to tapering
-  if (baseAllowance <= 0) {
+  // K codes and other flat-rate codes are not subject to tapering
+  if (baseAllowance <= 0 || isKCode) {
     return baseAllowance;
   }
   
@@ -126,13 +129,18 @@ function calculateIncomeTax(taxableIncome: number, region: Region, year: TaxYear
   if (code === 'BR') {
       return taxableIncome * bands.basic.rate;
   }
+  // For D0, use higher rate
   if (code === 'D0') {
       return taxableIncome * bands.higher.rate;
   }
+  // For D1, use additional/top rate
   if (code === 'D1') {
-      const additionalRate = region === 'Scotland' ? bands.top.rate : bands.additional.rate;
-      return taxableIncome * additionalRate;
+      const rate = region === 'Scotland' 
+          ? ('top' in SCOTLAND_BANDS ? SCOTLAND_BANDS.top.rate : SCOTLAND_BANDS.advanced.rate) 
+          : ENGLAND_WALES_NI_BANDS.additional.rate;
+      return taxableIncome * rate;
   }
+
 
   // Standard tax calculation for other codes
   let tax = 0;
@@ -144,41 +152,39 @@ function calculateIncomeTax(taxableIncome: number, region: Region, year: TaxYear
     const bandLimits = {
       "2023/24": [
         { upto: 2162, rate: 0.19},
-        { upto: 13118, rate: 0.20},
-        { upto: 31092, rate: 0.21},
-        { upto: 125140, rate: 0.42},
+        { upto: 13118 - 2162, rate: 0.20},
+        { upto: 31092 - 13118, rate: 0.21},
+        { upto: 125140 - 31092, rate: 0.42},
         { upto: Infinity, rate: 0.47},
       ],
       "2024/25": [
         { upto: 2306, rate: 0.19},
-        { upto: 13991, rate: 0.20},
-        { upto: 31092, rate: 0.21},
-        { upto: 62430, rate: 0.42},
-        { upto: 125140, rate: 0.45},
+        { upto: 13991 - 2306, rate: 0.20},
+        { upto: 31092 - 13991, rate: 0.21},
+        { upto: 62430 - 31092, rate: 0.42},
+        { upto: 125140 - 62430, rate: 0.45},
         { upto: Infinity, rate: 0.48}
       ],
       "2025/26": [ // Assuming same as 24/25
         { upto: 2306, rate: 0.19},
-        { upto: 13991, rate: 0.20},
-        { upto: 31092, rate: 0.21},
-        { upto: 62430, rate: 0.42},
-        { upto: 125140, rate: 0.45},
+        { upto: 13991 - 2306, rate: 0.20},
+        { upto: 31092 - 13991, rate: 0.21},
+        { upto: 62430 - 31092, rate: 0.42},
+        { upto: 125140 - 62430, rate: 0.45},
         { upto: Infinity, rate: 0.48}
       ]
     };
 
-    const sBands = bandLimits[year];
-    let lastBandLimit = 0;
+    const sBands = bandLimits[year] || bandLimits["2024/25"];
+    let remainingIncome = scottishTaxable;
+
     for (const band of sBands) {
-      if (scottishTaxable <= 0) break;
-      const bandWidth = band.upto - lastBandLimit;
-      const taxableInBand = Math.min(scottishTaxable, bandWidth);
-      tax += taxableInBand * band.rate;
-      scottishTaxable -= taxableInBand;
-      lastBandLimit = band.upto;
+        if (remainingIncome <= 0) break;
+        const taxableInBand = Math.min(remainingIncome, band.upto);
+        tax += taxableInBand * band.rate;
+        remainingIncome -= taxableInBand;
     }
     return tax;
-
 
   } else {
     // England, Wales, NI
@@ -196,9 +202,8 @@ function calculateIncomeTax(taxableIncome: number, region: Region, year: TaxYear
       tax += taxableInBand * band.rate;
       remainingIncome -= taxableInBand;
     }
+    return tax;
   }
-
-  return tax;
 }
 
 function calculateNICForIncome(income: number, year: TaxYear): number {
@@ -232,45 +237,53 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
       annualSalary = (input.salary / 12 * monthsAtOldSalary) + (input.newSalary / 12 * monthsAtNewSalary);
     }
     
+    // Total cash received by employee
     const grossAnnualCashIncome = annualSalary + (input.bonus ?? 0);
+    
     const pensionableBonus = input.isBonusPensionable && input.bonus ? input.bonus * (input.pensionableBonusPercentage / 100) : 0;
     const totalPensionableIncome = annualSalary + pensionableBonus;
 
     const annualPensionContribution = totalPensionableIncome * (input.pensionContribution / 100);
     
+    // Income for tax purposes = cash income + non-cash benefits
     const incomeForTaxPurposes = grossAnnualCashIncome + (input.taxableBenefits ?? 0);
+    
+    // Adjusted Net Income for PA tapering = income for tax - pension
     const adjustedNetIncome = incomeForTaxPurposes - annualPensionContribution;
     
+    const { isKCode } = parseTaxCode(input.taxCode);
     const personalAllowance = calculatePersonalAllowance(adjustedNetIncome, input.taxCode, input.taxYear);
     
-    const annualTaxableIncome = Math.max(0, adjustedNetIncome - personalAllowance);
+    // Taxable income = adjusted net income - personal allowance (or + added income for K code)
+    const annualTaxableIncome = isKCode 
+      ? adjustedNetIncome - personalAllowance // personalAllowance is negative for K-code
+      : Math.max(0, adjustedNetIncome - personalAllowance);
+
     const annualTax = calculateIncomeTax(annualTaxableIncome, input.region, input.taxYear, input.taxCode);
     
+    // NIC is calculated on cash earnings only, before pension deductions
     const annualNic = calculateNICForIncome(grossAnnualCashIncome, input.taxYear);
     
+    // Take-home is cash income minus all deductions
     const annualTakeHome = grossAnnualCashIncome - annualTax - annualNic - annualPensionContribution;
     
     const monthlyBreakdown: MonthlyResult[] = [];
     
-    const baseMonthlySalary = input.salary / 12;
-    const baseMonthlyPension = baseMonthlySalary * (input.pensionContribution / 100);
-
-    const baseTaxableIncome = (annualTaxableIncome - (input.bonus ?? 0) - (input.taxableBenefits ?? 0))
-    const salaryOnlyTax = calculateIncomeTax(Math.max(0, baseTaxableIncome), input.region, input.taxYear, input.taxCode)
-
-    const taxOnBonusAndBenefits = Math.max(0, annualTax - salaryOnlyTax);
-    
-    let bonusTax = 0;
+    // Apportion tax and NIC more smoothly
+    let taxOnBonus = 0;
     if ((input.bonus ?? 0) > 0) {
       const taxableWithoutBonus = annualTaxableIncome - (input.bonus ?? 0);
       const taxWithoutBonus = calculateIncomeTax(taxableWithoutBonus, input.region, input.taxYear, input.taxCode);
-      bonusTax = Math.max(0, annualTax - taxWithoutBonus);
+      taxOnBonus = Math.max(0, annualTax - taxWithoutBonus);
     }
-    
-    const taxOnBenefits = Math.max(0, taxOnBonusAndBenefits - bonusTax);
+    const taxOnSalaryAndBenefits = annualTax - taxOnBonus;
 
-    const annualNicOnSalary = calculateNICForIncome(annualSalary, input.taxYear);
-    const bonusNic = Math.max(0, annualNic - annualNicOnSalary);
+    let nicOnBonus = 0;
+    if ((input.bonus ?? 0) > 0) {
+        const nicWithoutBonus = calculateNICForIncome(annualSalary, input.taxYear);
+        nicOnBonus = Math.max(0, annualNic - nicWithoutBonus);
+    }
+    const nicOnSalary = annualNic - nicOnBonus;
     
     months.forEach((month, index) => {
         const currentAnnualSalary = (input.hasPayRise && input.newSalary && index >= payRiseMonthIndex) 
@@ -280,6 +293,7 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
         let monthlySalary = currentAnnualSalary / 12;
         
         let backPay = 0;
+        // Simple back pay calculation if pay rise month has passed
         if(input.hasPayRise && input.newSalary && index === payRiseMonthIndex && payRiseMonthIndex > 0) {
             const salaryDifference = (input.newSalary - input.salary) / 12;
             backPay = salaryDifference * payRiseMonthIndex;
@@ -292,13 +306,8 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
         const pensionableBonusForMonth = index === bonusMonthIndex && input.isBonusPensionable ? currentMonthBonus * (input.pensionableBonusPercentage / 100) : 0;
         const currentMonthPension = (pensionableSalaryForMonth + pensionableBonusForMonth) * (input.pensionContribution / 100);
         
-        const monthsInPayRise = input.hasPayRise && input.newSalary && index >= payRiseMonthIndex ? 12 - payRiseMonthIndex : 0;
-        const monthsBeforePayRise = 12 - monthsInPayRise;
-        const weightedAnnualNicOnSalary = (calculateNICForIncome(input.salary, input.taxYear) / 12 * monthsBeforePayRise) + (calculateNICForIncome(input.newSalary ?? input.salary, input.taxYear) / 12 * monthsInPayRise);
-        const monthlyNicOnSalary = weightedAnnualNicOnSalary / 12;
-
-        const currentMonthTax = (salaryOnlyTax / 12) + (taxOnBenefits / 12) + (index === bonusMonthIndex ? bonusTax : 0);
-        const currentMonthNic = (annualNicOnSalary / 12) + (index === bonusMonthIndex ? bonusNic : 0);
+        const currentMonthTax = (taxOnSalaryAndBenefits / 12) + (index === bonusMonthIndex ? taxOnBonus : 0);
+        const currentMonthNic = (nicOnSalary / 12) + (index === bonusMonthIndex ? nicOnBonus : 0);
         
         const takeHome = currentMonthGross - currentMonthTax - currentMonthNic - currentMonthPension;
 
@@ -320,6 +329,7 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
 
     return {
         grossAnnualIncome: finalGross,
+        annualTaxableIncome: annualTaxableIncome,
         annualTakeHome: finalTakeHome,
         annualTax: finalTax,
         annualNic: finalNic,

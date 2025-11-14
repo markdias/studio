@@ -424,6 +424,7 @@ export default function TaxCalculator() {
                                 <div className="grid grid-cols-2 gap-4 text-sm">
                                     <div className="text-right">
                                         <p className="text-muted-foreground">Gross Pay</p>
+                                        <p className="font-semibold text-muted-foreground">Taxable Income</p>
                                         <p className="text-muted-foreground">Take-Home</p>
                                         <p className="text-muted-foreground">Income Tax</p>
                                         <p className="text-muted-foreground">Nat. Ins.</p>
@@ -431,6 +432,7 @@ export default function TaxCalculator() {
                                     </div>
                                     <div>
                                         <p className="font-semibold">{formatCurrency(results.grossAnnualIncome)}</p>
+                                        <p className="font-bold">{formatCurrency(results.annualTaxableIncome)}</p>
                                         <p className="font-semibold">{formatCurrency(results.annualTakeHome)}</p>
                                         <p className="font-semibold">{formatCurrency(results.annualTax)}</p>
                                         <p className="font-semibold">{formatCurrency(results.annualNic)}</p>

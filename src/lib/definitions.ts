@@ -48,6 +48,7 @@ export interface MonthlyResult {
 
 export interface CalculationResults {
   grossAnnualIncome: number;
+  annualTaxableIncome: number;
   annualTakeHome: number;
   annualTax: number;
   annualNic: number;
