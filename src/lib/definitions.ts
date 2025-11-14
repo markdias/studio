@@ -29,6 +29,9 @@ export const taxCalculatorSchema = z.object({
   newSalary: z.coerce.number().min(0).optional(),
   payRiseMonth: z.enum(months).default("April"),
 
+  // Childcare fields toggle
+  showChildcareCalculator: z.boolean().optional().default(false),
+  
   // Childcare fields
   numberOfChildren: z.coerce.number().min(0).optional().default(0),
   daysPerWeekInChildcare: z.coerce.number().min(0).max(7).optional().default(0),
@@ -181,4 +184,5 @@ export const TaxChildcareChatOutputSchema = z.object({
 });
 export type TaxChildcareChatOutput = z.infer<typeof TaxChildcareChatOutputSchema>;
 
+    
     

@@ -25,7 +25,7 @@ const prompt = ai.definePrompt({
 Your goal is to collect user data by asking one question at a time.
 
 **User's Financial Data (from calculator):**
-{{#if financialContext.annualGrossIncome}}
+{{#if financialContext.salary}}
 - User Annual Gross Income: £{{financialContext.annualGrossIncome}}
 - User Annual Pension Contribution: £{{financialContext.annualPension}}
 - User Annual Taxable Benefits: £{{financialContext.taxableBenefits}}
@@ -95,3 +95,5 @@ const taxChildcareChatFlow = ai.defineFlow(
     return output!;
   }
 );
+
+    

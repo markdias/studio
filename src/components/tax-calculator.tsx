@@ -15,6 +15,7 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -65,6 +66,8 @@ const initialValues: TaxCalculatorSchema = {
   hasPayRise: false,
   newSalary: 60000,
   payRiseMonth: "April",
+  // Childcare sections toggle
+  showChildcareCalculator: false,
   // Childcare
   numberOfChildren: 0,
   daysPerWeekInChildcare: 0,
@@ -694,6 +697,28 @@ ${actionResult.data.summary}
           <Form {...form}>
             <form>
               <CardContent>
+                <div className="space-y-4 rounded-md border p-4 mb-6">
+                    <FormField
+                        control={form.control}
+                        name="showChildcareCalculator"
+                        render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between">
+                            <div className="space-y-0.5">
+                                <FormLabel>Show Childcare & Benefits Calculator</FormLabel>
+                                <FormDescription>
+                                    Enable to input childcare details and access the AI support calculators.
+                                </FormDescription>
+                            </div>
+                            <FormControl>
+                            <Switch
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                            />
+                            </FormControl>
+                        </FormItem>
+                        )}
+                    />
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-6">
                     {/* Column 1 */}
                     <div className="space-y-6">
@@ -1008,133 +1033,136 @@ ${actionResult.data.summary}
                             )}
                         </div>
                     </div>
-                    {/* Column 3 */}
-                    <div className="space-y-6">
-                        <div className="space-y-4 rounded-md border p-4 h-full">
-                            <h3 className="font-semibold text-base">Childcare Details</h3>
-                            <FormField
-                                control={form.control}
-                                name="numberOfChildren"
-                                render={({ field }) => (
-                                    <FormItem>
-                                    <FormLabel>Number of Children</FormLabel>
-                                    <FormControl>
-                                        <Input type="number" placeholder="e.g., 1" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                    </FormItem>
-                                )}
-                                />
-                                <FormField
-                                control={form.control}
-                                name="daysPerWeekInChildcare"
-                                render={({ field }) => (
-                                    <FormItem>
-                                    <FormLabel>Days per Week (per child)</FormLabel>
-                                    <FormControl>
-                                        <Input type="number" placeholder="e.g., 3" {...field} disabled={(watchedValues.numberOfChildren ?? 0) <= 0} />
-                                    </FormControl>
-                                    <FormMessage />
-                                    </FormItem>
-                                )}
-                                />
-                                <FormField
-                                control={form.control}
-                                name="dailyChildcareRate"
-                                render={({ field }) => (
-                                    <FormItem>
-                                    <FormLabel>Daily Rate (£ per child)</FormLabel>
-                                    <FormControl>
-                                        <Input type="number" placeholder="e.g., 60" {...field} disabled={(watchedValues.numberOfChildren ?? 0) <= 0} />
-                                    </FormControl>
-                                    <FormMessage />
-                                    </FormItem>
-                                )}
-                                />
-                                 <FormField
-                                    control={form.control}
-                                    name="registeredChildcareProvider"
-                                    render={({ field }) => (
-                                    <FormItem className="flex flex-row items-center justify-between">
-                                        <FormLabel>Provider is registered?</FormLabel>
-                                        <FormControl>
-                                        <Switch
-                                            checked={field.value}
-                                            onCheckedChange={field.onChange}
-                                            disabled={(watchedValues.numberOfChildren ?? 0) <= 0}
-                                        />
-                                        </FormControl>
-                                    </FormItem>
-                                    )}
-                                />
+                    {/* Column 3 & 4 - Childcare */}
+                    {watchedValues.showChildcareCalculator && (
+                        <>
+                        <div className="space-y-6">
+                            <div className="space-y-4 rounded-md border p-4 h-full">
+                                <h3 className="font-semibold text-base">Childcare Details</h3>
                                 <FormField
                                     control={form.control}
-                                    name="childDisabled"
+                                    name="numberOfChildren"
                                     render={({ field }) => (
-                                    <FormItem className="flex flex-row items-center justify-between">
-                                        <FormLabel>Any child disabled?</FormLabel>
+                                        <FormItem>
+                                        <FormLabel>Number of Children</FormLabel>
                                         <FormControl>
-                                        <Switch
-                                            checked={field.value}
-                                            onCheckedChange={field.onChange}
-                                            disabled={(watchedValues.numberOfChildren ?? 0) <= 0}
-                                        />
+                                            <Input type="number" placeholder="e.g., 1" {...field} />
                                         </FormControl>
-                                    </FormItem>
+                                        <FormMessage />
+                                        </FormItem>
                                     )}
-                                />
+                                    />
+                                    <FormField
+                                    control={form.control}
+                                    name="daysPerWeekInChildcare"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>Days per Week (per child)</FormLabel>
+                                        <FormControl>
+                                            <Input type="number" placeholder="e.g., 3" {...field} disabled={(watchedValues.numberOfChildren ?? 0) <= 0} />
+                                        </FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                    />
+                                    <FormField
+                                    control={form.control}
+                                    name="dailyChildcareRate"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>Daily Rate (£ per child)</FormLabel>
+                                        <FormControl>
+                                            <Input type="number" placeholder="e.g., 60" {...field} disabled={(watchedValues.numberOfChildren ?? 0) <= 0} />
+                                        </FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="registeredChildcareProvider"
+                                        render={({ field }) => (
+                                        <FormItem className="flex flex-row items-center justify-between">
+                                            <FormLabel>Provider is registered?</FormLabel>
+                                            <FormControl>
+                                            <Switch
+                                                checked={field.value}
+                                                onCheckedChange={field.onChange}
+                                                disabled={(watchedValues.numberOfChildren ?? 0) <= 0}
+                                            />
+                                            </FormControl>
+                                        </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="childDisabled"
+                                        render={({ field }) => (
+                                        <FormItem className="flex flex-row items-center justify-between">
+                                            <FormLabel>Any child disabled?</FormLabel>
+                                            <FormControl>
+                                            <Switch
+                                                checked={field.value}
+                                                onCheckedChange={field.onChange}
+                                                disabled={(watchedValues.numberOfChildren ?? 0) <= 0}
+                                            />
+                                            </FormControl>
+                                        </FormItem>
+                                        )}
+                                    />
+                            </div>
                         </div>
-                    </div>
 
-                    {/* Column 4 */}
-                    <div className="space-y-6">
-                        <div className="space-y-4 rounded-md border p-4 h-full">
-                             <h3 className="font-semibold text-base">Partner & Benefits</h3>
-                              <FormField
-                                control={form.control}
-                                name="partnerIncome"
-                                render={({ field }) => (
-                                    <FormItem>
-                                    <FormLabel>Partner's Annual Income (£)</FormLabel>
-                                    <FormControl>
-                                        <Input type="number" placeholder="e.g., 50000" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
+                        <div className="space-y-6">
+                            <div className="space-y-4 rounded-md border p-4 h-full">
+                                <h3 className="font-semibold text-base">Partner & Benefits</h3>
+                                <FormField
+                                    control={form.control}
+                                    name="partnerIncome"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>Partner's Annual Income (£)</FormLabel>
+                                        <FormControl>
+                                            <Input type="number" placeholder="e.g., 50000" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="claimingUniversalCredit"
+                                    render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center justify-between">
+                                        <FormLabel>Claiming Universal Credit?</FormLabel>
+                                        <FormControl>
+                                        <Switch
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                        />
+                                        </FormControl>
                                     </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="claimingUniversalCredit"
-                                render={({ field }) => (
-                                <FormItem className="flex flex-row items-center justify-between">
-                                    <FormLabel>Claiming Universal Credit?</FormLabel>
-                                    <FormControl>
-                                    <Switch
-                                        checked={field.value}
-                                        onCheckedChange={field.onChange}
-                                    />
-                                    </FormControl>
-                                </FormItem>
-                                )}
-                            />
-                             <FormField
-                                control={form.control}
-                                name="claimingTaxFreeChildcare"
-                                render={({ field }) => (
-                                <FormItem className="flex flex-row items-center justify-between">
-                                    <FormLabel>Claiming Tax-Free Childcare?</FormLabel>
-                                    <FormControl>
-                                    <Switch
-                                        checked={field.value}
-                                        onCheckedChange={field.onChange}
-                                    />
-                                    </FormControl>
-                                </FormItem>
-                                )}
-                            />
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="claimingTaxFreeChildcare"
+                                    render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center justify-between">
+                                        <FormLabel>Claiming Tax-Free Childcare?</FormLabel>
+                                        <FormControl>
+                                        <Switch
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                        />
+                                        </FormControl>
+                                    </FormItem>
+                                    )}
+                                />
+                            </div>
                         </div>
-                    </div>
+                        </>
+                    )}
                 </div>
               </CardContent>
             </form>
@@ -1178,11 +1206,13 @@ ${actionResult.data.summary}
                 )}
             </div>
 
-            <Tabs defaultValue="tax-advisor">
-              <TabsList className="grid w-full grid-cols-3">
+            <Tabs defaultValue="tax-advisor" className="w-full">
+              <TabsList className={`grid w-full ${watchedValues.showChildcareCalculator ? 'grid-cols-3' : 'grid-cols-1'}`}>
                 <TabsTrigger value="tax-advisor"><Lightbulb className="text-accent" />AI Tax Advisor</TabsTrigger>
-                <TabsTrigger value="childcare-advisor"><Baby className="text-accent" />AI £100k Advisor</TabsTrigger>
-                <TabsTrigger value="childcare-calculator"><HelpCircle className="text-accent" />Childcare Support Calculator</TabsTrigger>
+                {watchedValues.showChildcareCalculator && <>
+                    <TabsTrigger value="childcare-advisor"><Baby className="text-accent" />AI £100k Advisor</TabsTrigger>
+                    <TabsTrigger value="childcare-calculator"><HelpCircle className="text-accent" />Childcare Support Calculator</TabsTrigger>
+                </>}
               </TabsList>
               <TabsContent value="tax-advisor">
                 <Card>
@@ -1247,153 +1277,159 @@ ${actionResult.data.summary}
                     </CardContent>
                 </Card>
               </TabsContent>
-               <TabsContent value="childcare-advisor">
-                 <Card>
-                    <CardHeader>
-                        <CardTitle className="font-headline flex items-center gap-2"><Baby className="text-accent" />AI Childcare &amp; Salary Sacrifice Advisor</CardTitle>
-                        <CardDescription>Analyze costs and ask questions about managing the £100k income threshold.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="text-sm">
-                      <div ref={childcareChatContainerRef} className="h-auto p-4 border rounded-md mb-4 bg-muted/20 space-y-4">
-                            {isChildcareChatLoading && childcareChatHistory.length === 0 ? (
-                                <div className="flex items-center justify-center h-full">
-                                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                                </div>
-                            ) : childcareChatHistory.length === 0 ? (
-                                <div className="flex items-center justify-center h-full">
-                                    <div className="text-center text-muted-foreground">
-                                        Fill in childcare details and click below to generate advice.
+              {watchedValues.showChildcareCalculator && <>
+                <TabsContent value="childcare-advisor">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="font-headline flex items-center gap-2"><Baby className="text-accent" />AI Childcare &amp; Salary Sacrifice Advisor</CardTitle>
+                            <CardDescription>Analyze costs and ask questions about managing the £100k income threshold.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="text-sm">
+                        <div ref={childcareChatContainerRef} className="h-auto p-4 border rounded-md mb-4 bg-muted/20 space-y-4">
+                                {isChildcareChatLoading && childcareChatHistory.length === 0 ? (
+                                    <div className="flex items-center justify-center h-full">
+                                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
                                     </div>
-                                </div>
-                            ) : (
-                                childcareChatHistory.map((msg, index) => (
-                                    <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                        <div className={`p-3 rounded-lg ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>
-                                        <div className="whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: renderFormattedText(msg.content) }} />
+                                ) : childcareChatHistory.length === 0 ? (
+                                    <div className="flex items-center justify-center h-full">
+                                        <div className="text-center text-muted-foreground">
+                                            Fill in childcare details and click below to generate advice.
                                         </div>
                                     </div>
-                                ))
-                            )}
-                            {isChildcareChatLoading && childcareChatHistory.length > 0 && (
-                                <div className="flex justify-start">
-                                    <div className="p-3 rounded-lg bg-secondary">
-                                        <Loader2 className="h-5 w-5 animate-spin" />
+                                ) : (
+                                    childcareChatHistory.map((msg, index) => (
+                                        <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                            <div className={`p-3 rounded-lg ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>
+                                            <div className="whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: renderFormattedText(msg.content) }} />
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                                {isChildcareChatLoading && childcareChatHistory.length > 0 && (
+                                    <div className="flex justify-start">
+                                        <div className="p-3 rounded-lg bg-secondary">
+                                            <Loader2 className="h-5 w-5 animate-spin" />
+                                        </div>
                                     </div>
-                                </div>
+                                )}
+                            </div>
+                            {childcareChatHistory.length === 0 ? (
+                                <Button onClick={handleGenerateChildcareAdvice} disabled={isChildcareChatLoading || (watchedValues.numberOfChildren ?? 0) <= 0}>
+                                    {isChildcareChatLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Analyzing...</> : "Analyze Childcare Costs"}
+                                </Button>
+                            ) : (
+                                <form onSubmit={handleChildcareChatSubmit} className="flex gap-2">
+                                    <Textarea
+                                        placeholder="Ask a follow-up question..."
+                                        value={childcareChatInput}
+                                        onChange={(e) => setChildcareChatInput(e.target.value)}
+                                        onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                            e.preventDefault();
+                                            handleChildcareChatSubmit(e as any);
+                                        }
+                                        }}
+                                        disabled={isChildcareChatLoading}
+                                        rows={1}
+                                        className="flex-grow resize-none"
+                                    />
+                                    <Button type="submit" disabled={isChildcareChatLoading || !childcareChatInput.trim()} size="icon">
+                                        <Send />
+                                    </Button>
+                                </form>
                             )}
-                        </div>
-                        {childcareChatHistory.length === 0 ? (
-                            <Button onClick={handleGenerateChildcareAdvice} disabled={isChildcareChatLoading || (watchedValues.numberOfChildren ?? 0) <= 0}>
-                                {isChildcareChatLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Analyzing...</> : "Analyze Childcare Costs"}
-                            </Button>
-                        ) : (
-                            <form onSubmit={handleChildcareChatSubmit} className="flex gap-2">
+                        </CardContent>
+                        <CardFooter className="flex flex-col items-start gap-4">
+                            {childcareAdvice && childcareAdvice.suggestedPensionContributionPercentage && (
+                            <div className="rounded-md border p-4 w-full bg-secondary/50">
+                                <p className="text-sm font-medium mb-2">
+                                To reduce your adjusted net income to £100,000, the AI suggests increasing your pension contribution to <strong>{childcareAdvice.suggestedPensionContributionPercentage}%</strong>.
+                                </p>
+                                <Button
+                                size="sm"
+                                onClick={() => {
+                                    form.setValue('pensionContribution', childcareAdvice.suggestedPensionContributionPercentage!, { shouldValidate: true });
+                                    toast({
+                                    title: "Pension Updated",
+                                    description: `Your pension contribution has been set to ${childcareAdvice.suggestedPensionContributionPercentage}%.`,
+                                    });
+                                }}
+                                >
+                                Apply Suggestion
+                                </Button>
+                            </div>
+                            )}
+                        </CardFooter>
+                    </Card>
+                </TabsContent>
+                <TabsContent value="childcare-calculator">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="font-headline flex items-center gap-2"><HelpCircle className="text-accent" />Childcare Support Calculator</CardTitle>
+                            <CardDescription>Answer the questions to get a detailed breakdown of your childcare support eligibility.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="text-sm">
+                        <div ref={taxChildcareChatContainerRef} className="h-96 overflow-y-auto p-4 border rounded-md mb-4 bg-muted/20 space-y-4">
+                                {isTaxChildcareChatLoading && taxChildcareChatHistory.length === 0 ? (
+                                    <div className="flex items-center justify-center h-full">
+                                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                                    </div>
+                                ) : taxChildcareChatHistory.length === 0 ? (
+                                    <div className="flex items-center justify-center h-full">
+                                        <div className="text-center text-muted-foreground">
+                                            Ask the AI to start the calculation. For example, type "Start".
+                                        </div>
+                                    </div>
+                                ) : (
+                                    taxChildcareChatHistory.map((msg, index) => (
+                                        <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                            <div className={`p-3 rounded-lg ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>
+                                                <div className="whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: renderFormattedText(msg.content) }} />
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                                {isTaxChildcareChatLoading && taxChildcareChatHistory.length > 0 && (
+                                    <div className="flex justify-start">
+                                        <div className="p-3 rounded-lg bg-secondary">
+                                            <Loader2 className="h-5 w-5 animate-spin" />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            <form onSubmit={handleTaxChildcareChatSubmit} className="flex gap-2">
                                 <Textarea
-                                    placeholder="Ask a follow-up question..."
-                                    value={childcareChatInput}
-                                    onChange={(e) => setChildcareChatInput(e.target.value)}
+                                    placeholder="Your answer..."
+                                    value={taxChildcareChatInput}
+                                    onChange={(e) => setTaxChildcareChatInput(e.target.value)}
                                     onKeyDown={(e) => {
                                     if (e.key === 'Enter' && !e.shiftKey) {
                                         e.preventDefault();
-                                        handleChildcareChatSubmit(e as any);
+                                        handleTaxChildcareChatSubmit(e as any);
                                     }
                                     }}
-                                    disabled={isChildcareChatLoading}
+                                    disabled={isTaxChildcareChatLoading}
                                     rows={1}
                                     className="flex-grow resize-none"
                                 />
-                                <Button type="submit" disabled={isChildcareChatLoading || !childcareChatInput.trim()} size="icon">
+                                <Button type="submit" disabled={isTaxChildcareChatLoading || !taxChildcareChatInput.trim()} size="icon">
                                     <Send />
                                 </Button>
                             </form>
-                        )}
-                    </CardContent>
-                    <CardFooter className="flex flex-col items-start gap-4">
-                        {childcareAdvice && childcareAdvice.suggestedPensionContributionPercentage && (
-                        <div className="rounded-md border p-4 w-full bg-secondary/50">
-                            <p className="text-sm font-medium mb-2">
-                            To reduce your adjusted net income to £100,000, the AI suggests increasing your pension contribution to <strong>{childcareAdvice.suggestedPensionContributionPercentage}%</strong>.
-                            </p>
-                            <Button
-                            size="sm"
-                            onClick={() => {
-                                form.setValue('pensionContribution', childcareAdvice.suggestedPensionContributionPercentage!, { shouldValidate: true });
-                                toast({
-                                title: "Pension Updated",
-                                description: `Your pension contribution has been set to ${childcareAdvice.suggestedPensionContributionPercentage}%.`,
-                                });
-                            }}
-                            >
-                            Apply Suggestion
-                            </Button>
-                        </div>
-                        )}
-                    </CardFooter>
-                </Card>
-              </TabsContent>
-              <TabsContent value="childcare-calculator">
-                 <Card>
-                    <CardHeader>
-                        <CardTitle className="font-headline flex items-center gap-2"><HelpCircle className="text-accent" />Childcare Support Calculator</CardTitle>
-                        <CardDescription>Answer the questions to get a detailed breakdown of your childcare support eligibility.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="text-sm">
-                      <div ref={taxChildcareChatContainerRef} className="h-96 overflow-y-auto p-4 border rounded-md mb-4 bg-muted/20 space-y-4">
-                            {isTaxChildcareChatLoading && taxChildcareChatHistory.length === 0 ? (
-                                <div className="flex items-center justify-center h-full">
-                                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                                </div>
-                            ) : taxChildcareChatHistory.length === 0 ? (
-                                <div className="flex items-center justify-center h-full">
-                                    <div className="text-center text-muted-foreground">
-                                        Ask the AI to start the calculation. For example, type "Start".
-                                    </div>
-                                </div>
-                            ) : (
-                                taxChildcareChatHistory.map((msg, index) => (
-                                    <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                        <div className={`p-3 rounded-lg ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>
-                                            <div className="whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: renderFormattedText(msg.content) }} />
-                                        </div>
-                                    </div>
-                                ))
-                            )}
-                            {isTaxChildcareChatLoading && taxChildcareChatHistory.length > 0 && (
-                                <div className="flex justify-start">
-                                    <div className="p-3 rounded-lg bg-secondary">
-                                        <Loader2 className="h-5 w-5 animate-spin" />
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                        <form onSubmit={handleTaxChildcareChatSubmit} className="flex gap-2">
-                            <Textarea
-                                placeholder="Your answer..."
-                                value={taxChildcareChatInput}
-                                onChange={(e) => setTaxChildcareChatInput(e.target.value)}
-                                onKeyDown={(e) => {
-                                if (e.key === 'Enter' && !e.shiftKey) {
-                                    e.preventDefault();
-                                    handleTaxChildcareChatSubmit(e as any);
-                                }
-                                }}
-                                disabled={isTaxChildcareChatLoading}
-                                rows={1}
-                                className="flex-grow resize-none"
-                            />
-                            <Button type="submit" disabled={isTaxChildcareChatLoading || !taxChildcareChatInput.trim()} size="icon">
-                                <Send />
-                            </Button>
-                        </form>
-                    </CardContent>
-                </Card>
-              </TabsContent>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+              </>}
             </Tabs>
         </div>
       </div>
     </FormProvider>
   );
 }
+
+    
+
+    
 
     
 
