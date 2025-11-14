@@ -795,6 +795,44 @@ ${actionResult.data.summary}
                                     )}
                                 />
                             )}
+                            <Separator />
+                            <h4 className="font-semibold text-sm">Comparison</h4>
+                             <FormField
+                                control={form.control}
+                                name="enablePensionComparison"
+                                render={({ field }) => (
+                                <FormItem className="flex flex-row items-center justify-between">
+                                    <FormLabel>Enable Pension Comparison</FormLabel>
+                                    <FormControl>
+                                    <Switch
+                                        checked={field.value}
+                                        onCheckedChange={field.onChange}
+                                    />
+                                    </FormControl>
+                                </FormItem>
+                                )}
+                            />
+                            {watchedValues.enablePensionComparison && (
+                                <FormField
+                                    control={form.control}
+                                    name="adjustedPensionContribution"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>Adjusted Contribution ({field.value}%)</FormLabel>
+                                        <FormControl>
+                                            <Slider
+                                            min={0}
+                                            max={100}
+                                            step={1}
+                                            value={[field.value ?? 0]}
+                                            onValueChange={(value) => field.onChange(value[0])}
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            )}
                         </div>
 
                     </div>
@@ -947,46 +985,6 @@ ${actionResult.data.summary}
                         </div>
                     </div>
                 </div>
-                 <Separator className="my-6" />
-                 <div className="space-y-4 rounded-md border p-4 max-w-md">
-                    <h3 className="font-semibold text-base">Pension Comparison</h3>
-                    <FormField
-                        control={form.control}
-                        name="enablePensionComparison"
-                        render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between">
-                            <FormLabel>Enable Pension Comparison</FormLabel>
-                            <FormControl>
-                            <Switch
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                            />
-                            </FormControl>
-                        </FormItem>
-                        )}
-                    />
-                    {watchedValues.enablePensionComparison && (
-                        <FormField
-                            control={form.control}
-                            name="adjustedPensionContribution"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Adjusted Contribution ({field.value}%)</FormLabel>
-                                <FormControl>
-                                    <Slider
-                                    min={0}
-                                    max={100}
-                                    step={1}
-                                    value={[field.value ?? 0]}
-                                    onValueChange={(value) => field.onChange(value[0])}
-                                    />
-                                </FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                    )}
-                 </div>
               </CardContent>
             </form>
           </Form>
@@ -1187,3 +1185,4 @@ ${actionResult.data.summary}
     </FormProvider>
   );
 }
+
