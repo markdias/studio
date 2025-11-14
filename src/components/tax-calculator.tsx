@@ -71,6 +71,12 @@ const initialValues: TaxCalculatorSchema = {
   dailyChildcareRate: 0,
 };
 
+const defaultTaxCodes: Record<string, string> = {
+    "2023/24": "1257L",
+    "2024/25": "1257L",
+    "2025/26": "1257L",
+}
+
 export default function TaxCalculator() {
   const { toast } = useToast();
   const [results, setResults] = useState<CalculationResults | null>(null);
@@ -98,7 +104,8 @@ export default function TaxCalculator() {
   const watchedValues = form.watch();
 
   const calculate = () => {
-    const parsed = taxCalculatorSchema.safeParse(form.getValues());
+    const values = form.getValues();
+    const parsed = taxCalculatorSchema.safeParse(values);
     if (parsed.success) {
       setResults(calculateTakeHomePay(parsed.data));
     } else {
@@ -107,7 +114,15 @@ export default function TaxCalculator() {
   }
 
   useEffect(() => {
-    const subscription = form.watch((value) => {
+    const subscription = form.watch((value, { name }) => {
+        if(name === 'taxYear' && value.taxYear){
+            const newTaxCode = defaultTaxCodes[value.taxYear] || "1257L";
+            const currentTaxCode = form.getValues('taxCode');
+            // Only update if the tax code seems to be a default one, not a custom one.
+            if (!currentTaxCode || currentTaxCode.endsWith('L')) {
+               form.setValue('taxCode', newTaxCode, { shouldValidate: true, shouldDirty: true });
+            }
+        }
       calculate();
     });
     calculate();
@@ -773,7 +788,7 @@ ${actionResult.data.summary}
                                 <AlertTriangle className="h-4 w-4" />
                                 <AlertTitle>£100,000 Threshold</AlertTitle>
                                 <AlertDescription>
-                                    Your personal tax allowance is reduced as your income is over £100,000.
+                                    Your personal tax allowance is reduced as your income is over £100,000. This results in an effective marginal tax rate of ~60% on income between £100,000 and £125,140.
                                 </AlertDescription>
                             </Alert>
                         )}
@@ -837,7 +852,11 @@ ${actionResult.data.summary}
                                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
                             </div>
                         ) : taxChatHistory.length === 0 ? (
-                            <div className="text-center p-4 text-muted-foreground">Click the button below to generate your initial tax-saving tips.</div>
+                            <div className="flex items-center justify-center h-full">
+                                <div className="text-center text-muted-foreground">
+                                    Click the button to generate your initial tax-saving tips.
+                                </div>
+                            </div>
                         ) : (
                             taxChatHistory.map((msg, index) => (
                                 <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -895,7 +914,11 @@ ${actionResult.data.summary}
                                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
                             </div>
                         ) : childcareChatHistory.length === 0 ? (
-                            <div className="text-center p-4 text-muted-foreground">Fill in childcare details and click below to generate advice.</div>
+                             <div className="flex items-center justify-center h-full">
+                                <div className="text-center text-muted-foreground">
+                                    Fill in childcare details and click below to generate advice.
+                                </div>
+                            </div>
                         ) : (
                             childcareChatHistory.map((msg, index) => (
                                 <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -967,4 +990,3 @@ ${actionResult.data.summary}
     </FormProvider>
   );
 }
-
