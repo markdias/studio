@@ -237,43 +237,42 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
       annualSalary = (input.salary / 12 * monthsAtOldSalary) + (input.newSalary / 12 * monthsAtNewSalary);
     }
     
-    // Total cash received by employee
-    const grossAnnualCashIncome = annualSalary + (input.bonus ?? 0);
+    // Total gross pay is salary + bonus
+    const grossAnnualPay = annualSalary + (input.bonus ?? 0);
     
+    // Pensionable part of the bonus
     const pensionableBonus = input.isBonusPensionable && input.bonus ? input.bonus * (input.pensionableBonusPercentage / 100) : 0;
+    // Total income that pension contributions are calculated from
     const totalPensionableIncome = annualSalary + pensionableBonus;
-
+    // Annual pension contribution amount
     const annualPensionContribution = totalPensionableIncome * (input.pensionContribution / 100);
     
-    // Income for tax purposes = cash income + non-cash benefits
-    const incomeForTaxPurposes = grossAnnualCashIncome + (input.taxableBenefits ?? 0);
+    // Adjusted Net Income for Personal Allowance tapering purposes
+    // Gross Pay + Taxable Benefits - Pension Contributions
+    const adjustedNetIncome = grossAnnualPay + (input.taxableBenefits ?? 0) - annualPensionContribution;
     
-    // Adjusted Net Income for PA tapering = income for tax - pension
-    const adjustedNetIncome = incomeForTaxPurposes - annualPensionContribution;
-    
-    const { isKCode } = parseTaxCode(input.taxCode);
+    // Get the personal allowance based on tax code and tapering
     const personalAllowance = calculatePersonalAllowance(adjustedNetIncome, input.taxCode, input.taxYear);
     
-    // Taxable income = adjusted net income - personal allowance (or + added income for K code)
-    const annualTaxableIncome = isKCode 
-      ? adjustedNetIncome - personalAllowance // personalAllowance is negative for K-code
-      : Math.max(0, adjustedNetIncome - personalAllowance);
+    // Taxable Income is the Adjusted Net Income minus the personal allowance
+    // (A negative personal allowance from a K code will increase taxable income)
+    const annualTaxableIncome = Math.max(0, adjustedNetIncome - personalAllowance);
 
     const annualTax = calculateIncomeTax(annualTaxableIncome, input.region, input.taxYear, input.taxCode);
     
-    // NIC is calculated on cash earnings only, before pension deductions
-    const annualNic = calculateNICForIncome(grossAnnualCashIncome, input.taxYear);
+    // National Insurance is calculated on gross pay (cash earnings) only
+    const annualNic = calculateNICForIncome(grossAnnualPay, input.taxYear);
     
-    // Take-home is cash income minus all deductions
-    const annualTakeHome = grossAnnualCashIncome - annualTax - annualNic - annualPensionContribution;
+    // Take-home is gross cash pay minus all deductions
+    const annualTakeHome = grossAnnualPay - annualTax - annualNic - annualPensionContribution;
     
     const monthlyBreakdown: MonthlyResult[] = [];
     
-    // Apportion tax and NIC more smoothly
+    // Apportion tax and NIC more smoothly to avoid monthly fluctuations
     let taxOnBonus = 0;
     if ((input.bonus ?? 0) > 0) {
-      const taxableWithoutBonus = annualTaxableIncome - (input.bonus ?? 0);
-      const taxWithoutBonus = calculateIncomeTax(taxableWithoutBonus, input.region, input.taxYear, input.taxCode);
+      const taxableIncomeWithoutBonus = Math.max(0, annualTaxableIncome - (input.bonus ?? 0));
+      const taxWithoutBonus = calculateIncomeTax(taxableIncomeWithoutBonus, input.region, input.taxYear, input.taxCode);
       taxOnBonus = Math.max(0, annualTax - taxWithoutBonus);
     }
     const taxOnSalaryAndBenefits = annualTax - taxOnBonus;
