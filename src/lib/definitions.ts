@@ -9,8 +9,12 @@ export const months = [
 ] as const;
 export type Month = (typeof months)[number];
 
+export const taxYears = ["2023/24", "2024/25", "2025/26"] as const;
+export type TaxYear = (typeof taxYears)[number];
+
 
 export const taxCalculatorSchema = z.object({
+  taxYear: z.enum(taxYears).default("2024/25"),
   salary: z.coerce.number().min(0, "Salary must be a positive number."),
   bonus: z.coerce.number().min(0, "Bonus must be a positive number.").optional().default(0),
   taxableBenefits: z.coerce.number().min(0, "Taxable benefits must be a positive number.").optional().default(0),
@@ -20,6 +24,14 @@ export const taxCalculatorSchema = z.object({
   region: z.enum(regions).default("England"),
   bonusMonth: z.enum(months).default("April"),
   taxCode: z.string().default("1257L").describe("The user's tax code, e.g., 1257L"),
+  
+  // Pay rise fields
+  hasPayRise: z.boolean().default(false),
+  newSalary: z.coerce.number().min(0).optional(),
+  payRiseMonth: z.enum(months).default("April"),
+}).refine(data => !data.hasPayRise || (data.newSalary !== undefined && data.newSalary > data.salary), {
+  message: "New salary must be greater than the current salary.",
+  path: ["newSalary"],
 });
 
 export type TaxCalculatorSchema = z.infer<typeof taxCalculatorSchema>;
@@ -36,15 +48,10 @@ export interface MonthlyResult {
 
 export interface CalculationResults {
   grossAnnualIncome: number;
-  grossMonthlyIncome: number;
   annualTakeHome: number;
-  monthlyTakeHome: number;
   annualTax: number;
-  monthlyTax: number;
   annualNic: number;
-  monthlyNic: number;
   annualPension: number;
-  monthlyPension: number;
   effectiveTaxRate: number;
   breakdown: { name: string; value: number; fill: string }[];
   monthlyBreakdown: MonthlyResult[];

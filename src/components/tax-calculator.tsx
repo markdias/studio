@@ -40,7 +40,7 @@ import {
 import { PieChart, Pie, Cell } from "recharts";
 import { Separator } from "@/components/ui/separator";
 
-import { taxCalculatorSchema, type TaxCalculatorSchema, type CalculationResults, regions, months } from "@/lib/definitions";
+import { taxCalculatorSchema, type TaxCalculatorSchema, type CalculationResults, regions, months, taxYears } from "@/lib/definitions";
 import { calculateTakeHomePay } from "@/lib/tax-logic";
 import { generateTaxSavingTipsAction } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
@@ -50,6 +50,7 @@ import { Switch } from "@/components/ui/switch";
 
 
 const initialValues: TaxCalculatorSchema = {
+  taxYear: "2024/25",
   salary: 50000,
   bonus: 0,
   pensionContribution: 5,
@@ -59,6 +60,9 @@ const initialValues: TaxCalculatorSchema = {
   taxableBenefits: 0,
   isBonusPensionable: false,
   pensionableBonusPercentage: 100,
+  hasPayRise: false,
+  newSalary: 60000,
+  payRiseMonth: "April",
 };
 
 export default function TaxCalculator() {
@@ -75,17 +79,20 @@ export default function TaxCalculator() {
 
   const watchedValues = form.watch();
 
+  const calculate = () => {
+    const parsed = taxCalculatorSchema.safeParse(form.getValues());
+    if (parsed.success) {
+      setResults(calculateTakeHomePay(parsed.data));
+    } else {
+      setResults(null);
+    }
+  }
+
   useEffect(() => {
     const subscription = form.watch((value) => {
-      const parsed = taxCalculatorSchema.safeParse(value);
-      if (parsed.success) {
-        setResults(calculateTakeHomePay(parsed.data));
-      } else {
-        setResults(null);
-      }
+      calculate();
     });
-    // Initial calculation
-    setResults(calculateTakeHomePay(form.getValues()));
+    calculate();
     return () => subscription.unsubscribe();
   }, [form]);
 
@@ -105,10 +112,15 @@ export default function TaxCalculator() {
     setIsGenerating(true);
     setAiTips("");
 
+    // This needs updating based on how we want to pass pension info
+    const { salary, bonus, pensionContribution } = parsed.data;
+    const grossIncome = salary + (bonus ?? 0);
+    const pensionAmount = grossIncome * (pensionContribution / 100);
+
     const actionResult = await generateTaxSavingTipsAction({
-      salary: parsed.data.salary,
-      bonus: parsed.data.bonus,
-      pensionContributions: (parsed.data.salary + (parsed.data.bonus ?? 0)) * ((parsed.data.pensionContribution ?? 0) / 100),
+      salary: salary,
+      bonus: bonus,
+      pensionContributions: pensionAmount,
       otherTaxableBenefits: parsed.data.taxableBenefits,
       region: parsed.data.region,
     });
@@ -151,6 +163,30 @@ export default function TaxCalculator() {
             <form>
               <CardContent className="space-y-6">
                 <FormField
+                    control={form.control}
+                    name="taxYear"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tax Year</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select tax year" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {taxYears.map((year) => (
+                              <SelectItem key={year} value={year}>
+                                {year}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                <FormField
                   control={form.control}
                   name="salary"
                   render={({ field }) => (
@@ -189,6 +225,64 @@ export default function TaxCalculator() {
                     </FormItem>
                   )}
                 />
+                <div className="space-y-4 rounded-md border p-4">
+                  <FormField
+                    control={form.control}
+                    name="hasPayRise"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center justify-between">
+                        <FormLabel>Have a pay rise?</FormLabel>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  {watchedValues.hasPayRise && (
+                    <>
+                    <FormField
+                      control={form.control}
+                      name="newSalary"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>New Annual Salary (£)</FormLabel>
+                          <FormControl>
+                            <Input type="number" placeholder="e.g., 60000" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="payRiseMonth"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Pay Rise Effective Month</FormLabel>
+                           <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select month" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {months.map((month) => (
+                                <SelectItem key={month} value={month}>
+                                  {month}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    </>
+                  )}
+                </div>
                 <FormField
                   control={form.control}
                   name="bonus"
@@ -317,7 +411,7 @@ export default function TaxCalculator() {
             <Card>
                 <CardHeader>
                     <CardTitle className="font-headline">Your Annual Results</CardTitle>
-                    <CardDescription>An estimate of your annual take-home pay based on your details.</CardDescription>
+                    <CardDescription>An estimate of your annual take-home pay for tax year {watchedValues.taxYear}.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     {results ? (
@@ -414,7 +508,7 @@ export default function TaxCalculator() {
                     </TableHeader>
                     <TableBody>
                       {results.monthlyBreakdown.map((row) => (
-                        <TableRow key={row.month} className={row.gross > (results.grossAnnualIncome / 12) ? "bg-secondary hover:bg-secondary/80 font-semibold" : ""}>
+                        <TableRow key={row.month} className={row.gross > (results.grossAnnualIncome / 12) * 1.05 ? "bg-secondary hover:bg-secondary/80 font-semibold" : ""}>
                           <TableCell>{row.month}</TableCell>
                           <TableCell className="text-right">{formatCurrency(row.gross)}</TableCell>
                           <TableCell className="text-right">{formatCurrency(row.pension)}</TableCell>
