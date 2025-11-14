@@ -207,6 +207,7 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
     const annualTax = calculateTaxOnIncome(annualTaxableIncome, region, taxYear);
     
     let annualNicTotal = 0;
+    let annualTaxTotal = 0;
     const finalMonthlyBreakdown: MonthlyResult[] = [];
 
     for (let i = 0; i < 12; i++) {
@@ -223,25 +224,48 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
         const nicThisMonth = calculateNICForPeriod(grossThisMonth, taxYear);
         annualNicTotal += nicThisMonth;
         
-        // A simple apportionment of annual tax. This is an estimation.
-        // A more accurate PAYE calculation is complex and beyond this scope.
-        // We will apportion tax based on the proportion of annual taxable income earned this month.
-        let taxThisMonth = annualTax / 12;
-        if (bonusThisMonth > 0 && annualTaxableIncome > 0) {
-            const adjustedNetForSalary = annualGrossFromSalary - annualPensionFromSalary + taxableBenefits;
-            const paForSalary = calculateAnnualPersonalAllowance(adjustedNetForSalary, parsedCodeAllowance, taxYear);
-            const taxableSalary = Math.max(0, adjustedNetForSalary - paForSalary);
-            const taxOnSalary = calculateTaxOnIncome(taxableSalary, region, taxYear);
-            
-            const taxOnBonus = annualTax - taxOnSalary;
-            const regularMonthlyTax = taxOnSalary / 12;
+        // This is a simple apportionment of annual tax. For more accuracy, a proper PAYE calculation would be needed.
+        // We will now calculate tax on a monthly basis to handle 100% sacrifice cases correctly.
+        const adjustedNetThisMonth = (grossThisMonth - pensionThisMonth) + (taxableBenefits / 12);
+        const personalAllowanceThisMonth = finalPersonalAllowance / 12;
+        const taxableIncomeThisMonth = Math.max(0, adjustedNetThisMonth - personalAllowanceThisMonth);
 
-            if (i === bonusMonthIndex) {
-                 taxThisMonth = regularMonthlyTax + taxOnBonus;
-            } else {
-                 taxThisMonth = regularMonthlyTax;
+        // To estimate monthly tax, we can't just call calculateTaxOnIncome as it uses annual bands.
+        // A simple but more correct approach is to check if taxable income is zero.
+        // A more complex approach would involve annualizing the monthly income, which is too complex for this estimation.
+        // Let's use the annual tax figure and distribute it, but zero it out if the monthly income is zero after pension.
+        let taxThisMonth = 0;
+        if (annualTaxableIncome > 0) {
+            // A simple ratio of this month's taxable income to the annual total.
+            // This is still an estimate.
+            const monthRatio = taxableIncomeThisMonth / annualTaxableIncome;
+            taxThisMonth = annualTax * monthRatio;
+
+             // If this month has the bonus, the tax will be higher
+            if (i === bonusMonthIndex && bonus > 0) {
+                // To avoid complexity, we'll keep the previous bonus tax logic as a fallback for bonus months.
+                const adjustedNetForSalary = annualGrossFromSalary - annualPensionFromSalary + taxableBenefits;
+                const paForSalary = calculateAnnualPersonalAllowance(adjustedNetForSalary, parsedCodeAllowance, taxYear);
+                const taxableSalary = Math.max(0, adjustedNetForSalary - paForSalary);
+                const taxOnSalary = calculateTaxOnIncome(taxableSalary, region, taxYear);
+                
+                const taxOnBonus = annualTax - taxOnSalary;
+                const regularMonthlyTax = taxOnSalary / 12;
+
+                if (i === bonusMonthIndex) {
+                    taxThisMonth = regularMonthlyTax + taxOnBonus;
+                } else {
+                    taxThisMonth = regularMonthlyTax;
+                }
             }
         }
+       
+        // Ensure tax isn't negative or calculated on zero income
+        if (taxableIncomeThisMonth <= 0) {
+            taxThisMonth = 0;
+        }
+
+        annualTaxTotal += taxThisMonth;
         
         const takeHomeThisMonth = grossThisMonth - pensionThisMonth - taxThisMonth - nicThisMonth;
         
@@ -255,20 +279,21 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
         });
     }
 
-    const finalAnnualTakeHome = annualGrossIncome - annualPension - annualTax - annualNicTotal;
+    const finalAnnualTakeHome = finalMonthlyBreakdown.reduce((acc, month) => acc + month.takeHome, 0);
+    const finalAnnualTax = finalMonthlyBreakdown.reduce((acc, month) => acc + month.tax, 0);
     
     return {
         grossAnnualIncome: annualGrossIncome + taxableBenefits,
         annualTaxableIncome: annualTaxableIncome,
         annualTakeHome: finalAnnualTakeHome,
-        annualTax: annualTax,
+        annualTax: finalAnnualTax,
         annualNic: annualNicTotal,
         annualPension: annualPension,
         personalAllowance: finalPersonalAllowance,
-        effectiveTaxRate: (annualGrossIncome + taxableBenefits) > 0 ? ((annualTax + annualNicTotal) / (annualGrossIncome + taxableBenefits)) * 100 : 0,
+        effectiveTaxRate: (annualGrossIncome + taxableBenefits) > 0 ? ((finalAnnualTax + annualNicTotal) / (annualGrossIncome + taxableBenefits)) * 100 : 0,
         breakdown: [
             { name: 'Take-Home Pay', value: finalAnnualTakeHome, fill: 'hsl(var(--chart-1))' },
-            { name: 'Income Tax', value: annualTax, fill: 'hsl(var(--chart-2))' },
+            { name: 'Income Tax', value: finalAnnualTax, fill: 'hsl(var(--chart-2))' },
             { name: 'National Insurance', value: annualNicTotal, fill: 'hsl(var(--chart-3))' },
             { name: 'Pension', value: annualPension, fill: 'hsl(var(--chart-4))' },
         ],
