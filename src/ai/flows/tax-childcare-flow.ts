@@ -33,20 +33,28 @@ Your goal is to collect user data by asking one question at a time.
 {{#if financialContext.partnerIncome}}
 - Partner Income (Annual): £{{financialContext.partnerIncome}}
 {{/if}}
+{{#if financialContext.registeredChildcareProvider}}
+- Registered Childcare Provider: Yes
+{{/if}}
+{{#if financialContext.childDisabled}}
+- Child Disabled: Yes
+{{/if}}
+{{#if financialContext.claimingUniversalCredit}}
+- Claiming Universal Credit: Yes
+{{/if}}
+{{#if financialContext.claimingTaxFreeChildcare}}
+- Claiming Tax-Free Childcare: Yes
+{{/if}}
+
 
 **Instructions:**
-1.  **Use Provided Data:** Use the financial data above. Do NOT ask for 'user_income' or 'country in the UK' again. The primary income figures are already provided.
+1.  **Use Provided Data:** Use the financial data above. Do NOT ask for information that is already provided in the "User's Financial Data" section.
 2.  **Collect Missing Data Sequentially:** Ask for only one piece of information per response.
 3.  **Acknowledge Previous Answers:** When asking a new question, briefly acknowledge the user's previous answer. For example: "Thanks. Now, what is...".
 4.  **Data to Collect (if not already provided):**
-    - partner_income (annual, enter 0 if not applicable)
     - employment type for each person (employed or self-employed)
     - child_age_months
     - monthly_childcare_cost
-    - registered_childcare_provider (yes or no)
-    - child_disabled (yes or no)
-    - claiming_universal_credit (yes or no)
-    - claiming_tax_free_childcare (yes or no)
 5.  **Final Output:** Once all fields are collected, you MUST return a single, valid markdown table and nothing else. Do not add any extra explanation or text outside of the table.
 
 **The final markdown table must have two columns ("Metric" and "Value") and contain the following rows:**
@@ -85,3 +93,5 @@ const taxChildcareChatFlow = ai.defineFlow(
     return output!;
   }
 );
+
+    

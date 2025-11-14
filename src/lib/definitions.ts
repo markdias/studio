@@ -33,6 +33,13 @@ export const taxCalculatorSchema = z.object({
   numberOfChildren: z.coerce.number().min(0).optional().default(0),
   daysPerWeekInChildcare: z.coerce.number().min(0).max(7).optional().default(0),
   dailyChildcareRate: z.coerce.number().min(0).optional().default(0),
+  registeredChildcareProvider: z.boolean().optional().default(false),
+  childDisabled: z.boolean().optional().default(false),
+
+  // Partner & Benefits
+  partnerIncome: z.coerce.number().min(0, "Partner income must be a positive number.").optional().default(0),
+  claimingUniversalCredit: z.boolean().optional().default(false),
+  claimingTaxFreeChildcare: z.boolean().optional().default(false),
 
   // Pension Comparison
   enablePensionComparison: z.boolean().optional().default(false),
@@ -137,6 +144,10 @@ const FinancialContextSchema = z.object({
   personalAllowance: z.number().optional(),
   // For childcare chat
   partnerIncome: z.number().optional(),
+  registeredChildcareProvider: z.boolean().optional(),
+  childDisabled: z.boolean().optional(),
+  claimingUniversalCredit: z.boolean().optional(),
+  claimingTaxFreeChildcare: z.boolean().optional(),
 });
 
 const ChatMessageSchema = z.object({
@@ -169,3 +180,5 @@ export const TaxChildcareChatOutputSchema = z.object({
   answer: z.string().describe("The AI's next question or final JSON object."),
 });
 export type TaxChildcareChatOutput = z.infer<typeof TaxChildcareChatOutputSchema>;
+
+    
