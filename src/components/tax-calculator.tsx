@@ -44,6 +44,7 @@ import { taxCalculatorSchema, type TaxCalculatorSchema, type CalculationResults,
 import { calculateTakeHomePay } from "@/lib/tax-logic";
 import { generateTaxSavingTipsAction } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
+import { Slider } from "@/components/ui/slider";
 
 const initialValues: TaxCalculatorSchema = {
   salary: 50000,
@@ -172,9 +173,15 @@ export default function TaxCalculator() {
                   name="pensionContribution"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Your Pension Contribution (%)</FormLabel>
+                      <FormLabel>Your Pension Contribution ({field.value}%)</FormLabel>
                       <FormControl>
-                        <Input type="number" placeholder="e.g., 5" {...field} />
+                        <Slider
+                          min={0}
+                          max={100}
+                          step={1}
+                          value={[field.value ?? 0]}
+                          onValueChange={(value) => field.onChange(value[0])}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -225,25 +232,24 @@ export default function TaxCalculator() {
                                 </div>
                                 <Separator />
                                 <div className="grid grid-cols-2 gap-4 text-sm">
-                                    <div>
-                                        <p className="text-muted-foreground">Annual</p>
-                                        <p className="font-semibold">{formatCurrency(results.grossAnnualIncome)}</p>
-                                        <p className="font-semibold">{formatCurrency(results.annualTakeHome)}</p>
-                                        <p className="font-semibold">{formatCurrency(results.annualTax)}</p>
-                                        <p className="font-semibold">{formatCurrency(results.annualNic)}</p>
-                                        <p className="font-semibold">{formatCurrency(results.annualPension)}</p>
-                                    </div>
-                                    <div>
+                                    <div className="text-right">
                                         <p className="text-muted-foreground">Gross Pay</p>
                                         <p className="text-muted-foreground">Take-Home</p>
                                         <p className="text-muted-foreground">Income Tax</p>
                                         <p className="text-muted-foreground">Nat. Ins.</p>
                                         <p className="text-muted-foreground">Pension</p>
                                     </div>
+                                    <div>
+                                        <p className="font-semibold">{formatCurrency(results.grossMonthlyIncome)}</p>
+                                        <p className="font-semibold">{formatCurrency(results.monthlyTakeHome)}</p>
+                                        <p className="font-semibold">{formatCurrency(results.monthlyTax)}</p>
+                                        <p className="font-semibold">{formatCurrency(results.monthlyNic)}</p>
+                                        <p className="font-semibold">{formatCurrency(results.monthlyPension)}</p>
+                                    </div>
                                 </div>
                                 <Separator />
                                 <div>
-                                    <p className="text-sm text-muted-foreground">Effective Tax Rate</p>
+                                    <p className="text-sm text-muted-foreground">Effective Tax Rate (Annual)</p>
                                     <p className="text-lg font-semibold">{results.effectiveTaxRate.toFixed(2)}%</p>
                                 </div>
                             </div>
@@ -318,3 +324,5 @@ export default function TaxCalculator() {
     </FormProvider>
   );
 }
+
+    
