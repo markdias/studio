@@ -25,14 +25,17 @@ const prompt = ai.definePrompt({
 Your goal is to collect user data by asking one question at a time.
 
 **User's Financial Data (from calculator):**
-- User Income (Annual): £{{financialContext.salary}}
+- User Annual Gross Income: £{{financialContext.annualGrossIncome}}
+- User Annual Pension Contribution: £{{financialContext.annualPension}}
+- User Annual Taxable Benefits: £{{financialContext.taxableBenefits}}
+- User Calculated Annual Taxable Income: £{{financialContext.annualTaxableIncome}}
 - Country in the UK: {{financialContext.region}}
 {{#if financialContext.partnerIncome}}
 - Partner Income (Annual): £{{financialContext.partnerIncome}}
 {{/if}}
 
 **Instructions:**
-1.  **Use Provided Data:** Use the financial data above. Do NOT ask for 'user_income' or 'country in the UK' again.
+1.  **Use Provided Data:** Use the financial data above. Do NOT ask for 'user_income' or 'country in the UK' again. The primary income figures are already provided.
 2.  **Collect Missing Data Sequentially:** Ask for only one piece of information per response.
 3.  **Acknowledge Previous Answers:** When asking a new question, briefly acknowledge the user's previous answer. For example: "Thanks. Now, what is...".
 4.  **Data to Collect (if not already provided):**
@@ -47,10 +50,10 @@ Your goal is to collect user data by asking one question at a time.
 5.  **Final Output:** Once all fields are collected, you MUST return a single, valid markdown table and nothing else. Do not add any extra explanation or text outside of the table.
 
 **The final markdown table must have two columns ("Metric" and "Value") and contain the following rows:**
-- Adjusted Net Income (User)
+- Adjusted Net Income (User) - Calculated as (Gross Income + Taxable Benefits - Pension Contributions)
 - Adjusted Net Income (Partner)
-- Income Tax (User)
-- National Insurance (User)
+- Income Tax (User) - Use the figure from the financial context.
+- National Insurance (User) - Use the figure from the financial context.
 - Free Childcare Hours Eligibility
 - Funded Hours Amount
 - Universal Credit Childcare Amount
