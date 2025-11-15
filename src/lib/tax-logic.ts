@@ -287,6 +287,7 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
 
     for (let i = 0; i < 12; i++) {
         const month = months[i];
+        const monthIndex = i + 1;
         const grossThisMonthFromSalary = monthlySalaries[i];
         const bonusThisMonth = (i === bonusMonthIndex) ? bonus : 0;
 
@@ -308,9 +309,9 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
         const grossForTaxYTD = cumulativeGrossForTaxYTD + cumulativeTaxableBenefitsYTD;
         const adjustedGrossForTaxYTD = grossForTaxYTD - cumulativePensionYTD;
 
-        // Use the fixed annual personal allowance (calculated at the start based on expected annual income)
+        // Spread the annual personal allowance proportionally across months
         // This ensures consistent tax withholding month-to-month when salary is stable
-        const personalAllowanceYTD = finalPersonalAllowance;
+        const personalAllowanceYTD = finalPersonalAllowance * monthIndex / 12;
 
         const taxableIncomeYTD = Math.max(0, adjustedGrossForTaxYTD - personalAllowanceYTD);
         const taxDueYTD = calculateTaxOnIncome(taxableIncomeYTD, region, taxYear);
