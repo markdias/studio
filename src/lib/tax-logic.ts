@@ -108,47 +108,68 @@ export function parseTaxCode(taxCode: string, defaultAllowance: number): number 
         return defaultAllowance;
     }
     const code = taxCode.toUpperCase().trim();
-    
-    if (['BR', 'D0', 'D1', '0T', 'NT'].includes(code)) {
+
+    // Remove region suffix (S for Scotland) if present - it doesn't affect the allowance amount
+    // but should be matched with the correct tax bands elsewhere
+    const codeWithoutSuffix = code.replace(/^S/, '');
+
+    if (['BR', 'D0', 'D1', '0T', 'NT'].includes(codeWithoutSuffix)) {
         return 0;
     }
-    
-    const kCodeMatch = code.match(/^K(\d+)/);
+
+    const kCodeMatch = codeWithoutSuffix.match(/^K(\d+)/);
     if (kCodeMatch) {
         const num = parseInt(kCodeMatch[1], 10);
-        return isNaN(num) ? 0 : -(num * 10);
+        // K-codes typically represent amounts up to 9999 (£99,990 debt)
+        // Limit to prevent unrealistic negative allowances
+        if (isNaN(num) || num < 0) return 0;
+        if (num > 99999) {
+            // Log warning for unusually large K-code but still process it
+            console.warn(`K-code amount ${num} is unusually large (normally max 9999)`);
+            return -(num * 10);
+        }
+        return -(num * 10);
     }
-    
-    const match = code.match(/^(\d+)[LMNPTY]?$/);
+
+    const match = codeWithoutSuffix.match(/^(\d+)[LMNPTY]?$/);
     if (match) {
         const num = parseInt(match[1], 10);
         return isNaN(num) ? defaultAllowance : num * 10;
     }
-    
+
     return defaultAllowance;
+}
+
+export function getRegionFromTaxCode(taxCode: string): Region | null {
+    if (!taxCode) return null;
+    const code = taxCode.toUpperCase().trim();
+    // S prefix indicates Scottish resident using Scottish tax bands
+    if (code.startsWith('S')) {
+        return 'Scotland';
+    }
+    return null;
 }
 
 
 function calculateAnnualPersonalAllowance(adjustedNetIncome: number, parsedAllowance: number, isBlind: boolean, year: TaxYear): number {
   const { PA_TAPER_THRESHOLD, BLIND_PERSONS_ALLOWANCE, PERSONAL_ALLOWANCE_DEFAULT } = getTaxYearData(year);
 
-  // K-codes are not tapered.
+  // K-codes represent HMRC debt (negative allowance). They should not be combined with blind person's allowance.
+  // K-codes are also not tapered or adjusted - they are fixed amounts owed.
   if (parsedAllowance < 0) {
-      return parsedAllowance + (isBlind ? BLIND_PERSONS_ALLOWANCE : 0);
+      return parsedAllowance;
   }
 
-  // Tapering is always based on the default personal allowance for the year.
-  let allowance = PERSONAL_ALLOWANCE_DEFAULT;
+  // Personal allowance tapering: £1 lost for every £2 earned over £100,000.
+  // Taper is applied to the actual allowance (whether default or custom code).
+  let baseAllowance = parsedAllowance > 0 ? parsedAllowance : PERSONAL_ALLOWANCE_DEFAULT;
+  let finalAllowance = baseAllowance;
 
   if (adjustedNetIncome > PA_TAPER_THRESHOLD) {
       const incomeOverThreshold = adjustedNetIncome - PA_TAPER_THRESHOLD;
       const reduction = incomeOverThreshold / 2;
-      allowance = Math.max(0, PERSONAL_ALLOWANCE_DEFAULT - reduction);
+      finalAllowance = Math.max(0, baseAllowance - reduction);
   }
-  
-  // Apply any difference from a custom tax code (e.g. 1300L) AFTER tapering the default allowance.
-  const customCodeAdjustment = parsedAllowance - PERSONAL_ALLOWANCE_DEFAULT;
-  let finalAllowance = allowance + customCodeAdjustment;
   
   // Add blind person's allowance if applicable
   finalAllowance += (isBlind ? BLIND_PERSONS_ALLOWANCE : 0);
@@ -281,7 +302,8 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
     const annualPension = annualPensionFromSalary + annualPensionFromRecurringBonus + annualPensionFromOneTimeBonus;
 
     // This is the income used for National Insurance and Student Loan calculations.
-    const grossForNIAndLoan = pensionScheme === 'Salary Sacrifice' ? grossAnnualIncome - annualPension : grossAnnualIncome;
+    // Taxable benefits are included as they are subject to NI in the UK.
+    const grossForNIAndLoan = pensionScheme === 'Salary Sacrifice' ? (grossAnnualIncome + taxableBenefits) - annualPension : (grossAnnualIncome + taxableBenefits);
 
     // This is the income used to determine if the personal allowance should be tapered.
     const adjustedNetIncomeForPA = grossAnnualIncome + taxableBenefits - (pensionScheme === 'Salary Sacrifice' ? annualPension : 0);
@@ -328,8 +350,14 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
         const pensionThisMonth = pensionThisMonthSalary + pensionThisMonthRecurringBonus + pensionThisMonthOneTimeBonus;
 
         // Pro-rate the annual deductions for this month.
-        // This is an estimation approach. A precise payroll calculation is much more complex (cumulative YTD).
-        // This gives a good estimate for each month.
+        // NOTE: This is an ESTIMATION approach and does NOT use proper HMRC cumulative payroll.
+        // Real payroll uses Year-To-Date (YTD) cumulative basis, which means:
+        // - Tax is calculated on cumulative income from April to current month
+        // - Mid-year pay rises cause higher tax in later months (not averaged)
+        // - Bonuses in specific months create lumpy tax in that month only
+        // - Personal allowance is utilized month-by-month cumulatively
+        // This approximation is acceptable for salary planning but NOT for final tax returns.
+        // For accurate calculations, use HMRC's payroll software or a certified accountant.
         const taxThisMonth = annualTax / 12;
         const nicThisMonth = annualNic / 12;
         const loanThisMonth = annualStudentLoan / 12;

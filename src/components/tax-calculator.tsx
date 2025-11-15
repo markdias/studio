@@ -723,9 +723,9 @@ ${actionResult.data.summary}
             {res.grossAnnualIncome > 100000 && (
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>£100,000 Threshold</AlertTitle>
+                <AlertTitle>£100,000 Threshold - High Marginal Tax Rate</AlertTitle>
                 <AlertDescription>
-                  Your personal tax allowance is reduced as your income is over £100,000. This results in an effective marginal tax rate of ~60% on income between £100,000 and £125,140.
+                  Your personal tax allowance reduces by £1 for every £2 earned above £100,000, creating an effective marginal tax rate of approximately 60% on income between £100,000 and £125,140. Breakdown: 40% income tax + 2% National Insurance + 20% allowance withdrawal = ~62% marginal rate. Consider tax-efficient planning such as pension contributions (Salary Sacrifice) or charitable giving to reduce this impact.
                 </AlertDescription>
               </Alert>
             )}
@@ -734,7 +734,7 @@ ${actionResult.data.summary}
                 <AlertTriangle className="h-4 w-4" />
                 <AlertTitle>£50,000 Threshold</AlertTitle>
                 <AlertDescription>
-                  You are in a higher tax bracket and may be subject to the High Income Child Benefit Charge if applicable.
+                  You are in a higher tax bracket. If you claim Child Benefit, you may be liable for the High Income Child Benefit Charge, which reduces the benefit by 1% for each £100 earned above £50,000.
                 </AlertDescription>
               </Alert>
             )}
@@ -1233,7 +1233,7 @@ ${actionResult.data.summary}
                                         <FormControl>
                                             <Input type="number" placeholder="e.g., 2000" {...field} />
                                         </FormControl>
-                                        <FormDescription className="text-xs">e.g. company car, medical insurance. Affects tax, not NI.</FormDescription>
+                                        <FormDescription className="text-xs">e.g. company car, medical insurance. Subject to both income tax and National Insurance.</FormDescription>
                                         <FormMessage />
                                         </FormItem>
                                     )}
