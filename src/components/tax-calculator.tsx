@@ -40,6 +40,14 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from "@/components/ui/chart";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { PieChart, Pie, Cell } from "recharts";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
@@ -1063,7 +1071,42 @@ ${actionResult.data.summary}
 
                         {watchedValues.showPension && (
                             <div className="space-y-4 rounded-md border p-4">
+                                <div className="flex items-center justify-between">
                                 <h3 className="font-semibold text-base">Pension</h3>
+                                <Dialog>
+                                    <DialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6">
+                                        <HelpCircle className="h-4 w-4" />
+                                    </Button>
+                                    </DialogTrigger>
+                                    <DialogContent className="sm:max-w-[625px]">
+                                    <DialogHeader>
+                                        <DialogTitle className="font-headline">Pension Schemes Explained</DialogTitle>
+                                        <DialogDescription>
+                                        Understanding how different pension contributions work in the UK.
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    <div className="grid gap-4 py-4 text-sm">
+                                        <div className="space-y-2">
+                                        <h4 className="font-semibold">Auto-enrolment workplace pension</h4>
+                                        <p>If you’re aged 22 up to state pension age, and earn more than the threshold, your employer must enrol you in a workplace pension. The minimum total contribution is 8% of qualifying earnings, and at least 3% must come from your employer. “Qualifying earnings” is the band of earnings between a lower and upper limit set by government. Your contributions typically come from your salary via payroll.</p>
+                                        </div>
+                                        <Separator />
+                                        <div className="space-y-2">
+                                        <h4 className="font-semibold">Salary sacrifice / salary exchange scheme</h4>
+                                        <p>You agree with your employer to reduce your gross salary by a certain amount, and your employer puts that amount into your pension instead. This has benefits for both you and your employer as you both pay less National Insurance. You may also pay less income tax. </p>
+                                        <Alert variant="destructive" className="mt-2">
+                                            <AlertTriangle className="h-4 w-4" />
+                                            <AlertTitle>Important Considerations</AlertTitle>
+                                            <AlertDescription>
+                                            Lowering your salary could affect things like mortgage eligibility or statutory pay entitlements (e.g., sick pay). You must not drop your salary below the national minimum wage.
+                                            </AlertDescription>
+                                        </Alert>
+                                        </div>
+                                    </div>
+                                    </DialogContent>
+                                </Dialog>
+                                </div>
                                 <FormField
                                     control={form.control}
                                     name="pensionContribution"
@@ -1276,126 +1319,128 @@ ${actionResult.data.summary}
                         )}
 
                         {watchedValues.showChildcareCalculator && (
-                            <div className="space-y-6">
-                                <div className="space-y-4 rounded-md border p-4">
-                                    <h3 className="font-semibold text-base">Childcare Details</h3>
-                                    <FormField
-                                        control={form.control}
-                                        name="numberOfChildren"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                            <FormLabel>Number of Children</FormLabel>
-                                            <FormControl>
-                                                <Input type="number" placeholder="e.g., 1" {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                            </FormItem>
-                                        )}
+                            <div className="space-y-6 rounded-md border p-4 md:col-span-2">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-4">
+                                        <h3 className="font-semibold text-base">Childcare Details</h3>
+                                        <FormField
+                                            control={form.control}
+                                            name="numberOfChildren"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                <FormLabel>Number of Children</FormLabel>
+                                                <FormControl>
+                                                    <Input type="number" placeholder="e.g., 1" {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                                </FormItem>
+                                            )}
+                                            />
+                                            <FormField
+                                            control={form.control}
+                                            name="daysPerWeekInChildcare"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                <FormLabel>Days per Week (per child)</FormLabel>
+                                                <FormControl>
+                                                    <Input type="number" placeholder="e.g., 3" {...field} disabled={(watchedValues.numberOfChildren ?? 0) <= 0} />
+                                                </FormControl>
+                                                <FormMessage />
+                                                </FormItem>
+                                            )}
+                                            />
+                                            <FormField
+                                            control={form.control}
+                                            name="dailyChildcareRate"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                <FormLabel>Daily Rate (£ per child)</FormLabel>
+                                                <FormControl>
+                                                    <Input type="number" placeholder="e.g., 60" {...field} disabled={(watchedValues.numberOfChildren ?? 0) <= 0} />
+                                                </FormControl>
+                                                <FormMessage />
+                                                </FormItem>
+                                            )}
+                                            />
+                                    </div>
+                                    <div className="space-y-4">
+                                        <h3 className="font-semibold text-base">Partner & Benefits</h3>
+                                        <FormField
+                                            control={form.control}
+                                            name="partnerIncome"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                <FormLabel>Partner's Annual Income (£)</FormLabel>
+                                                <FormControl>
+                                                    <Input type="number" placeholder="e.g., 50000" {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                                </FormItem>
+                                            )}
                                         />
                                         <FormField
-                                        control={form.control}
-                                        name="daysPerWeekInChildcare"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                            <FormLabel>Days per Week (per child)</FormLabel>
-                                            <FormControl>
-                                                <Input type="number" placeholder="e.g., 3" {...field} disabled={(watchedValues.numberOfChildren ?? 0) <= 0} />
-                                            </FormControl>
-                                            <FormMessage />
+                                            control={form.control}
+                                            name="registeredChildcareProvider"
+                                            render={({ field }) => (
+                                            <FormItem className="flex flex-row items-center justify-between">
+                                                <FormLabel>Provider is registered?</FormLabel>
+                                                <FormControl>
+                                                <Switch
+                                                    checked={field.value}
+                                                    onCheckedChange={field.onChange}
+                                                    disabled={(watchedValues.numberOfChildren ?? 0) <= 0}
+                                                />
+                                                </FormControl>
                                             </FormItem>
-                                        )}
+                                            )}
                                         />
                                         <FormField
-                                        control={form.control}
-                                        name="dailyChildcareRate"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                            <FormLabel>Daily Rate (£ per child)</FormLabel>
-                                            <FormControl>
-                                                <Input type="number" placeholder="e.g., 60" {...field} disabled={(watchedValues.numberOfChildren ?? 0) <= 0} />
-                                            </FormControl>
-                                            <FormMessage />
+                                            control={form.control}
+                                            name="childDisabled"
+                                            render={({ field }) => (
+                                            <FormItem className="flex flex-row items-center justify-between">
+                                                <FormLabel>Any child disabled?</FormLabel>
+                                                <FormControl>
+                                                <Switch
+                                                    checked={field.value}
+                                                    onCheckedChange={field.onChange}
+                                                    disabled={(watchedValues.numberOfChildren ?? 0) <= 0}
+                                                />
+                                                </FormControl>
                                             </FormItem>
-                                        )}
+                                            )}
                                         />
-                                </div>
-                                <div className="space-y-4 rounded-md border p-4">
-                                    <h3 className="font-semibold text-base">Partner & Benefits</h3>
-                                    <FormField
-                                        control={form.control}
-                                        name="partnerIncome"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                            <FormLabel>Partner's Annual Income (£)</FormLabel>
-                                            <FormControl>
-                                                <Input type="number" placeholder="e.g., 50000" {...field} />
-                                            </FormControl>
-                                            <FormMessage />
+                                        <FormField
+                                            control={form.control}
+                                            name="claimingUniversalCredit"
+                                            render={({ field }) => (
+                                            <FormItem className="flex flex-row items-center justify-between">
+                                                <FormLabel>Claiming Universal Credit?</FormLabel>
+                                                <FormControl>
+                                                <Switch
+                                                    checked={field.value}
+                                                    onCheckedChange={field.onChange}
+                                                />
+                                                </FormControl>
                                             </FormItem>
-                                        )}
-                                    />
-                                    <FormField
-                                        control={form.control}
-                                        name="registeredChildcareProvider"
-                                        render={({ field }) => (
-                                        <FormItem className="flex flex-row items-center justify-between">
-                                            <FormLabel>Provider is registered?</FormLabel>
-                                            <FormControl>
-                                            <Switch
-                                                checked={field.value}
-                                                onCheckedChange={field.onChange}
-                                                disabled={(watchedValues.numberOfChildren ?? 0) <= 0}
-                                            />
-                                            </FormControl>
-                                        </FormItem>
-                                        )}
-                                    />
-                                    <FormField
-                                        control={form.control}
-                                        name="childDisabled"
-                                        render={({ field }) => (
-                                        <FormItem className="flex flex-row items-center justify-between">
-                                            <FormLabel>Any child disabled?</FormLabel>
-                                            <FormControl>
-                                            <Switch
-                                                checked={field.value}
-                                                onCheckedChange={field.onChange}
-                                                disabled={(watchedValues.numberOfChildren ?? 0) <= 0}
-                                            />
-                                            </FormControl>
-                                        </FormItem>
-                                        )}
-                                    />
-                                    <FormField
-                                        control={form.control}
-                                        name="claimingUniversalCredit"
-                                        render={({ field }) => (
-                                        <FormItem className="flex flex-row items-center justify-between">
-                                            <FormLabel>Claiming Universal Credit?</FormLabel>
-                                            <FormControl>
-                                            <Switch
-                                                checked={field.value}
-                                                onCheckedChange={field.onChange}
-                                            />
-                                            </FormControl>
-                                        </FormItem>
-                                        )}
-                                    />
-                                    <FormField
-                                        control={form.control}
-                                        name="claimingTaxFreeChildcare"
-                                        render={({ field }) => (
-                                        <FormItem className="flex flex-row items-center justify-between">
-                                            <FormLabel>Claiming Tax-Free Childcare?</FormLabel>
-                                            <FormControl>
-                                            <Switch
-                                                checked={field.value}
-                                                onCheckedChange={field.onChange}
-                                            />
-                                            </FormControl>
-                                        </FormItem>
-                                        )}
-                                    />
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name="claimingTaxFreeChildcare"
+                                            render={({ field }) => (
+                                            <FormItem className="flex flex-row items-center justify-between">
+                                                <FormLabel>Claiming Tax-Free Childcare?</FormLabel>
+                                                <FormControl>
+                                                <Switch
+                                                    checked={field.value}
+                                                    onCheckedChange={field.onChange}
+                                                />
+                                                </FormControl>
+                                            </FormItem>
+                                            )}
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         )}
