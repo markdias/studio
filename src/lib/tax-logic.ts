@@ -252,74 +252,79 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
     const taxYearConfig = getTaxYearData(taxYear);
     const parsedCodeAllowance = parseTaxCode(taxCode, taxYearConfig.PERSONAL_ALLOWANCE_DEFAULT);
 
-    let annualGrossFromSalary = 0;
+    let totalSalary = 0;
     for (let i = 0; i < 12; i++) {
         const currentMonthlySalary = (i < payRiseMonthIndex) ? salary / 12 : (input.newSalary ?? salary) / 12;
-        annualGrossFromSalary += currentMonthlySalary;
+        totalSalary += currentMonthlySalary;
     }
-
-    const totalSalary = annualGrossFromSalary;
     const grossAnnualIncome = totalSalary + bonus;
 
-    const pensionFromSalary = totalSalary * (pensionContribution / 100);
-    const pensionFromBonus = bonus * (bonusPensionContribution / 100);
-    const annualPension = pensionFromSalary + pensionFromBonus;
+    // --- Overall Annual Calculation (for summary panel) ---
+    const annualPensionFromSalary = totalSalary * (pensionContribution / 100);
+    const annualPensionFromBonus = bonus * (bonusPensionContribution / 100);
+    const annualPension = annualPensionFromSalary + annualPensionFromBonus;
 
-    const annualGrossForTax = grossAnnualIncome + taxableBenefits;
-    const adjustedNetIncomeForPA = annualGrossForTax - annualPension;
-
+    const adjustedNetIncomeForPA = grossAnnualIncome + taxableBenefits - annualPension;
     const finalPersonalAllowance = calculateAnnualPersonalAllowance(adjustedNetIncomeForPA, parsedCodeAllowance, blind, taxYear);
-    const annualTaxableIncome = Math.max(0, annualGrossForTax - annualPension - finalPersonalAllowance);
-
+    const annualTaxableIncome = Math.max(0, grossAnnualIncome + taxableBenefits - annualPension - finalPersonalAllowance);
     const annualTax = calculateTaxOnIncome(annualTaxableIncome, region, taxYear);
 
-    const annualGrossForNI = grossAnnualIncome - annualPension;
-    const annualNic = calculateNICForAnnual(annualGrossForNI, taxYear);
+    const grossForNIAndLoan = grossAnnualIncome - annualPension;
+    const annualNic = calculateNICForAnnual(grossForNIAndLoan, taxYear);
+    const annualStudentLoan = calculateStudentLoanForAnnual(grossForNIAndLoan, taxYear, input);
+    const annualTakeHome = grossAnnualIncome - annualPension - annualTax - annualNic - annualStudentLoan;
+
+
+    // --- Monthly Breakdown Calculations ---
     
-    const annualGrossForLoan = grossAnnualIncome - annualPension;
-    const annualStudentLoan = calculateStudentLoanForAnnual(annualGrossForLoan, taxYear, input);
+    // 1. Calculate base deductions on salary only (for the 11 non-bonus months)
+    const basePension = totalSalary * (pensionContribution / 100);
+    const baseAdjustedNetIncome = totalSalary + taxableBenefits - basePension;
+    const basePersonalAllowance = calculateAnnualPersonalAllowance(baseAdjustedNetIncome, parsedCodeAllowance, blind, taxYear);
+    const baseTaxableIncome = Math.max(0, totalSalary + taxableBenefits - basePension - basePersonalAllowance);
+    const baseAnnualTax = calculateTaxOnIncome(baseTaxableIncome, region, taxYear);
     
-    const totalDeductions = annualTax + annualNic + annualStudentLoan + annualPension;
-    const annualTakeHome = grossAnnualIncome - totalDeductions;
+    const baseGrossForNI = totalSalary - basePension;
+    const baseAnnualNic = calculateNICForAnnual(baseGrossForNI, taxYear);
+    const baseAnnualStudentLoan = calculateStudentLoanForAnnual(baseGrossForNI, taxYear, input);
+
+    const monthlySalaryTax = baseAnnualTax / 12;
+    const monthlySalaryNic = baseAnnualNic / 12;
+    const monthlySalaryLoan = baseAnnualStudentLoan / 12;
+
+    // 2. Calculate the *additional* tax/NI on the bonus
+    let taxOnBonus = 0;
+    let nicOnBonus = 0;
+    let loanOnBonus = 0;
+    if (bonus > 0) {
+        // Tax on bonus is the difference between tax with and without the bonus
+        taxOnBonus = annualTax - baseAnnualTax;
+        
+        // NI on bonus is the difference between NI with and without the bonus
+        nicOnBonus = annualNic - baseAnnualNic;
+
+        // Loan on bonus
+        loanOnBonus = annualStudentLoan - baseAnnualStudentLoan;
+    }
     
-    // --- Monthly Breakdown ---
     const monthlyBreakdown: MonthlyResult[] = [];
-    
-    const monthlySalaryPension = pensionFromSalary / 12;
-    const monthlySalaryTax = (calculateTaxOnIncome(Math.max(0, totalSalary + taxableBenefits - pensionFromSalary - finalPersonalAllowance), region, taxYear)) / 12;
-    const monthlySalaryNic = calculateNICForAnnual(totalSalary - pensionFromSalary, taxYear) / 12;
-    const monthlySalaryLoan = calculateStudentLoanForAnnual(totalSalary - pensionFromSalary, taxYear, input) / 12;
     
     for (let i = 0; i < 12; i++) {
         const month = months[i];
-        let grossThisMonth = (i < payRiseMonthIndex) ? salary / 12 : (input.newSalary ?? salary) / 12;
-        let pensionThisMonth = grossThisMonth * (pensionContribution / 100);
-        
+        const grossThisMonthFromSalary = (i < payRiseMonthIndex) ? salary / 12 : (input.newSalary ?? salary) / 12;
+        const pensionThisMonthFromSalary = grossThisMonthFromSalary * (pensionContribution / 100);
+
+        let grossThisMonth = grossThisMonthFromSalary;
+        let pensionThisMonth = pensionThisMonthFromSalary;
         let taxThisMonth = monthlySalaryTax;
         let nicThisMonth = monthlySalaryNic;
         let loanThisMonth = monthlySalaryLoan;
 
         if (i === bonusMonthIndex) {
-            const pensionFromBonusThisMonth = bonus * (bonusPensionContribution / 100);
-            
-            const grossForTaxWithBonus = totalSalary + taxableBenefits + bonus;
-            const pensionWithBonus = pensionFromSalary + pensionFromBonusThisMonth;
-            const taxableWithBonus = Math.max(0, grossForTaxWithBonus - pensionWithBonus - finalPersonalAllowance);
-            const taxOnTotal = calculateTaxOnIncome(taxableWithBonus, region, taxYear);
-            const taxOnBonus = taxOnTotal - annualTax;
-
-            const grossForNIWithBonus = totalSalary - pensionFromSalary + bonus - pensionFromBonusThisMonth;
-            const niOnTotal = calculateNICForAnnual(grossForNIWithBonus, taxYear);
-            const niOnBonus = niOnTotal - annualNic;
-            
-            const grossForLoanWithBonus = totalSalary - pensionFromSalary + bonus - pensionFromBonusThisMonth;
-            const loanOnTotal = calculateStudentLoanForAnnual(grossForLoanWithBonus, taxYear, input);
-            const loanOnBonus = loanOnTotal - annualStudentLoan;
-
             grossThisMonth += bonus;
-            pensionThisMonth += pensionFromBonusThisMonth;
+            pensionThisMonth += bonus * (bonusPensionContribution / 100);
             taxThisMonth += taxOnBonus;
-            nicThisMonth += niOnBonus;
+            nicThisMonth += nicOnBonus;
             loanThisMonth += loanOnBonus;
         }
 
