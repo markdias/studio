@@ -308,9 +308,9 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
         const grossForTaxYTD = cumulativeGrossForTaxYTD + cumulativeTaxableBenefitsYTD;
         const adjustedGrossForTaxYTD = grossForTaxYTD - cumulativePensionYTD;
 
-        // Calculate personal allowance based on cumulative income, not annual income
-        // This ensures the allowance is applied correctly when income crosses the £100k threshold
-        const personalAllowanceYTD = calculateAnnualPersonalAllowance(adjustedGrossForTaxYTD, parsedCodeAllowance, blind, taxYear);
+        // Use the fixed annual personal allowance (calculated at the start based on expected annual income)
+        // This ensures consistent tax withholding month-to-month when salary is stable
+        const personalAllowanceYTD = finalPersonalAllowance;
 
         const taxableIncomeYTD = Math.max(0, adjustedGrossForTaxYTD - personalAllowanceYTD);
         const taxDueYTD = calculateTaxOnIncome(taxableIncomeYTD, region, taxYear);
