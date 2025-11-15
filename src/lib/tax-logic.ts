@@ -50,7 +50,7 @@ const taxYearData = {
       intermediate: { rate: 0.21, threshold: 31092 },
       higher: { rate: 0.42, threshold: 62430 },
       advanced: { rate: 0.45, threshold: 125140 },
-      top: { rate: 0.48, threshold: Infinity },
+      top: { rate: 0.47, threshold: Infinity },
     },
      NIC_BANDS: {
       pt: 12570,
@@ -75,13 +75,13 @@ const taxYearData = {
       higher: { rate: 0.40, threshold: 125140 },
       additional: { rate: 0.45, threshold: Infinity },
     },
-    SCOTLAND_BANDS: { 
+    SCOTLAND_BANDS: {
       starter: { rate: 0.19, threshold: 2306 },
       basic: { rate: 0.20, threshold: 13991 },
       intermediate: { rate: 0.21, threshold: 31092 },
       higher: { rate: 0.42, threshold: 62430 },
       advanced: { rate: 0.45, threshold: 125140 },
-      top: { rate: 0.48, threshold: Infinity },
+      top: { rate: 0.47, threshold: Infinity },
     },
     NIC_BANDS: {
       pt: 12570,
@@ -142,7 +142,7 @@ function calculateAnnualPersonalAllowance(adjustedNetIncome: number, parsedAllow
 
   if (adjustedNetIncome > PA_TAPER_THRESHOLD) {
       const incomeOverThreshold = adjustedNetIncome - PA_TAPER_THRESHOLD;
-      const reduction = Math.floor(incomeOverThreshold / 2);
+      const reduction = incomeOverThreshold / 2;
       allowance = Math.max(0, PERSONAL_ALLOWANCE_DEFAULT - reduction);
   }
   
