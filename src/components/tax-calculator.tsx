@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertTriangle, Lightbulb, Loader2, CalendarIcon, Baby, Send, Download, Upload, Edit, Save, HelpCircle, GraduationCap, Eye } from "lucide-react";
+import { AlertTriangle, Lightbulb, Loader2, CalendarIcon, Baby, Send, Download, Upload, Edit, Save, HelpCircle, GraduationCap, Eye, Coins } from "lucide-react";
 import {
   ChartContainer,
   ChartTooltip,
@@ -52,7 +52,7 @@ import { PieChart, Pie, Cell } from "recharts";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 
-import { taxCalculatorSchema, type TaxCalculatorSchema, type CalculationResults, regions, months, taxYears, type ChildcareAdviceOutput, ChatMessage, pensionSchemes } from "@/lib/definitions";
+import { taxCalculatorSchema, type TaxCalculatorSchema, type CalculationResults, regions, months, taxYears, type ChildcareAdviceOutput, ChatMessage, pensionSchemes, payFrequencies } from "@/lib/definitions";
 import { calculateTakeHomePay, getTaxYearData } from "@/lib/tax-logic";
 import { generateTaxSavingTipsAction, generateChildcareAdviceAction, financialChatAction, taxChildcareChatAction } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
@@ -69,6 +69,7 @@ const initialValues: TaxCalculatorSchema = {
   salary: 50000,
   region: "England",
   taxCode: "1257L",
+  payFrequencies: [],
 
   // Optional Sections
   showBonus: false,
@@ -159,41 +160,13 @@ export default function TaxCalculator() {
   const watchedValues = form.watch();
   
   const {
-    taxYear,
-    salary,
-    region,
-    taxCode,
-    showBonus,
-    bonus,
-    bonusMonth,
-    showPension,
-    pensionScheme,
-    pensionContribution,
-    bonusPensionContribution,
-    enablePensionComparison,
-    adjustedPensionContribution,
-    showBenefits,
-    taxableBenefits,
-    blind,
-    showPayRise,
-    hasPayRise,
-    newSalary,
-    payRiseMonth,
-    showChildcareCalculator,
-    numberOfChildren,
-    daysPerWeekInChildcare,
-    dailyChildcareRate,
-    partnerIncome,
-    registeredChildcareProvider,
-    childDisabled,
-    claimingUniversalCredit,
-    claimingTaxFreeChildcare,
-    showStudentLoan,
-    studentLoanPlan1,
-    studentLoanPlan2,
-    studentLoanPlan4,
-    studentLoanPlan5,
-    postgraduateLoan,
+    taxYear, salary, region, taxCode, showBonus, bonus, bonusMonth,
+    showPension, pensionScheme, pensionContribution, bonusPensionContribution, enablePensionComparison, adjustedPensionContribution,
+    showBenefits, taxableBenefits, blind, showPayRise, hasPayRise, newSalary, payRiseMonth,
+    showChildcareCalculator, numberOfChildren, daysPerWeekInChildcare, dailyChildcareRate, partnerIncome,
+    registeredChildcareProvider, childDisabled, claimingUniversalCredit, claimingTaxFreeChildcare,
+    showStudentLoan, studentLoanPlan1, studentLoanPlan2, studentLoanPlan4, studentLoanPlan5, postgraduateLoan,
+    payFrequencies: selectedFrequencies,
   } = watchedValues;
 
   const mainCalculation = useMemo(() => {
@@ -575,6 +548,33 @@ ${actionResult.data.summary}
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(value);
 
+  const salaryBreakdown = useMemo(() => {
+    if (!selectedFrequencies || selectedFrequencies.length === 0) return [];
+    
+    const annualSalary = watchedValues.salary || 0;
+    
+    const getGrossPay = (frequency: string) => {
+        switch(frequency) {
+            case 'yearly': return annualSalary;
+            case 'monthly': return annualSalary / 12;
+            case '4-weekly': return annualSalary / 13;
+            case '2-weekly': return annualSalary / 26;
+            case 'weekly': return annualSalary / 52;
+            case 'daily': return annualSalary / 260; // Assuming 5 work days a week for 52 weeks
+            default: return 0;
+        }
+    };
+    
+    return payFrequencies
+        .filter(f => selectedFrequencies.includes(f.id))
+        .map(f => ({
+            frequency: f.label,
+            grossPay: getGrossPay(f.id)
+        }));
+        
+  }, [selectedFrequencies, watchedValues.salary]);
+
+
  const renderFormattedText = (text: string) => {
     // Convert markdown bold to strong tags
     text = text.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>');
@@ -786,7 +786,7 @@ ${actionResult.data.summary}
             <form>
               <CardContent>
                 <div className="space-y-4 rounded-md border p-4 mb-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         <FormField
                             control={form.control}
                             name="showChildcareCalculator"
@@ -1016,6 +1016,77 @@ ${actionResult.data.summary}
                             </FormItem>
                             )}
                         />
+                    </div>
+
+                    <div className="space-y-4 rounded-md border p-4">
+                        <h3 className="font-semibold text-base flex items-center gap-2"><Coins className="h-5 w-5" />Salary Breakdown</h3>
+                        <FormField
+                            control={form.control}
+                            name="payFrequencies"
+                            render={() => (
+                                <FormItem>
+                                <FormLabel>Show gross pay for:</FormLabel>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                                {payFrequencies.map((item) => (
+                                    <FormField
+                                    key={item.id}
+                                    control={form.control}
+                                    name="payFrequencies"
+                                    render={({ field }) => {
+                                        return (
+                                        <FormItem
+                                            key={item.id}
+                                            className="flex flex-row items-start space-x-3 space-y-0"
+                                        >
+                                            <FormControl>
+                                            <Checkbox
+                                                checked={field.value?.includes(item.id)}
+                                                onCheckedChange={(checked) => {
+                                                return checked
+                                                    ? field.onChange([...(field.value ?? []), item.id])
+                                                    : field.onChange(
+                                                        field.value?.filter(
+                                                        (value) => value !== item.id
+                                                        )
+                                                    )
+                                                }}
+                                            />
+                                            </FormControl>
+                                            <FormLabel className="font-normal">
+                                            {item.label}
+                                            </FormLabel>
+                                        </FormItem>
+                                        )
+                                    }}
+                                    />
+                                ))}
+                                </div>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                            />
+                        {salaryBreakdown.length > 0 && (
+                            <Card className="bg-muted/30">
+                                <CardContent className="p-4">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Frequency</TableHead>
+                                                <TableHead className="text-right">Gross Pay</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {salaryBreakdown.map((item) => (
+                                                <TableRow key={item.frequency}>
+                                                    <TableCell className="font-medium">{item.frequency}</TableCell>
+                                                    <TableCell className="text-right">{formatCurrency(item.grossPay)}</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </CardContent>
+                            </Card>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

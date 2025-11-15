@@ -16,12 +16,23 @@ export type TaxYear = (typeof taxYears)[number];
 export const pensionSchemes = ["Salary Sacrifice", "Standard (Relief at Source)"] as const;
 export type PensionScheme = (typeof pensionSchemes)[number];
 
+export const payFrequencies = [
+    { id: 'yearly', label: 'Yearly' },
+    { id: 'monthly', label: 'Monthly' },
+    { id: '4-weekly', label: '4 Weekly' },
+    { id: '2-weekly', label: '2 Weekly' },
+    { id: 'weekly', label: 'Weekly' },
+    { id: 'daily', label: 'Daily' },
+] as const;
+export type PayFrequency = (typeof payFrequencies)[number]['id'];
+
 
 export const taxCalculatorSchema = z.object({
   taxYear: z.enum(taxYears).default("2024/25"),
   salary: z.coerce.number().min(0, "Salary must be a positive number."),
   region: z.enum(regions).default("England"),
   taxCode: z.string().default("1257L").describe("The user's tax code, e.g., 1257L"),
+  payFrequencies: z.array(z.string()).optional().default([]),
 
   // Optional section toggles
   showBonus: z.boolean().optional().default(false),
@@ -95,8 +106,8 @@ export interface CalculationResults {
   annualTakeHome: number;
   annualTax: number;
   annualNic: number;
-  annualPension: number;
   annualStudentLoan: number;
+  annualPension: number;
   personalAllowance: number;
   effectiveTaxRate: number;
   breakdown: { name: string; value: number; fill: string }[];
@@ -207,5 +218,3 @@ export const TaxChildcareChatOutputSchema = z.object({
   answer: z.string().describe("The AI's next question or final JSON object."),
 });
 export type TaxChildcareChatOutput = z.infer<typeof TaxChildcareChatOutputSchema>;
-
-    
