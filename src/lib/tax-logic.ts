@@ -143,7 +143,7 @@ function calculateAnnualPersonalAllowance(adjustedNetIncome: number, parsedAllow
     let taperedAllowance = allowanceBeforeTaper;
     if (adjustedNetIncome > PA_TAPER_THRESHOLD) {
         const incomeOverThreshold = adjustedNetIncome - PA_TAPER_THRESHOLD;
-        const reduction = Math.floor(incomeOverThreshold / 2);
+        const reduction = incomeOverThreshold / 2;
         taperedAllowance = Math.max(0, allowanceBeforeTaper - reduction);
     }
 
