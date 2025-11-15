@@ -554,27 +554,19 @@ ${actionResult.data.summary}
 
     const oneTimeBonus = bonusPayFrequency === 'one-time' ? bonus : 0;
     const bonusPeriodData = results.monthlyBreakdown.find(m => m.month === bonusMonth);
-    const typicalPeriodData = results.monthlyBreakdown.find(m => m.month !== bonusMonth) || results.monthlyBreakdown[0]; // fallback for all-bonus scenario
+    const typicalPeriodData = results.monthlyBreakdown.find(m => m.month !== bonusMonth) || results.monthlyBreakdown[0];
 
     return payFrequencies
         .filter(f => selectedFrequencies.includes(f.id))
         .map(f => {
-            const divisor = f.divisor;
-
-            // Typical Period Calculation (based on a non-bonus month)
-            const getTypicalValue = (annualValue: number, bonusMonthValue: number, annualBonusValue: number) => {
-                if (bonusPayFrequency !== 'one-time' || oneTimeBonus === 0) {
-                    return annualValue / divisor;
-                }
-                // (Total Annual - Bonus Month Value) / 11 months * (12 / divisor)
-                return ((annualValue - bonusMonthValue) / 11) * (12 / divisor);
-            };
+            const multiplier = f.divisor / 12; // e.g., weekly is 52/12 = 4.333
             
-            const typicalGross = typicalPeriodData.gross * (12/divisor);
-            const typicalTax = typicalPeriodData.tax * (12/divisor);
-            const typicalNic = typicalPeriodData.nic * (12/divisor);
-            const typicalPension = typicalPeriodData.pension * (12/divisor);
-            const typicalStudentLoan = typicalPeriodData.studentLoan * (12/divisor);
+            // Typical Period Calculation (based on a non-bonus month)
+            const typicalGross = typicalPeriodData.gross * multiplier;
+            const typicalTax = typicalPeriodData.tax * multiplier;
+            const typicalNic = typicalPeriodData.nic * multiplier;
+            const typicalPension = typicalPeriodData.pension * multiplier;
+            const typicalStudentLoan = typicalPeriodData.studentLoan * multiplier;
             const typicalTakeHome = typicalGross - typicalTax - typicalNic - typicalPension - typicalStudentLoan;
             
             // Bonus Period Calculation
@@ -1925,5 +1917,7 @@ ${actionResult.data.summary}
     </FormProvider>
   );
 }
+
+    
 
     
