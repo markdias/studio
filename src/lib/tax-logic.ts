@@ -282,7 +282,7 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
     const annualTaxableIncome = Math.max(0, grossAnnualForTax - annualPension - finalPersonalAllowance);
 
     // --- Monthly Breakdown using Cumulative Calculation ---
-    let cumulativeGrossForTaxYTD = 0;
+    let cumulativeGrossYTD = 0;
     let cumulativePensionYTD = 0;
     let cumulativeTaxableBenefitsYTD = 0;
     let cumulativeTaxPaidYTD = 0;
@@ -292,42 +292,42 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
     for (let i = 0; i < 12; i++) {
         const month = months[i];
         const monthIndex = i + 1;
+        
         const grossThisMonthFromSalary = monthlySalaries[i];
         const bonusThisMonth = (i === bonusMonthIndex) ? bonus : 0;
+        const grossThisMonth = grossThisMonthFromSalary + bonusThisMonth;
 
         const pensionFromSalaryThisMonth = grossThisMonthFromSalary * (pensionContribution / 100);
         const pensionFromBonusThisMonth = bonusThisMonth * (bonusPensionContribution / 100);
         const pensionThisMonth = pensionFromSalaryThisMonth + pensionFromBonusThisMonth;
 
-        const grossThisMonthBeforeSacrifice = grossThisMonthFromSalary + bonusThisMonth;
-
-        const earningsForNIAndLoan = grossThisMonthBeforeSacrifice - pensionThisMonth;
+        const earningsForNIAndLoan = grossThisMonth - pensionThisMonth;
 
         const taxableBenefitsThisMonth = taxableBenefits / 12;
 
-        cumulativeGrossForTaxYTD += grossThisMonthBeforeSacrifice;
+        cumulativeGrossYTD += grossThisMonth;
         cumulativePensionYTD += pensionThisMonth;
         cumulativeTaxableBenefitsYTD += taxableBenefitsThisMonth;
 
-        const grossForTaxYTD = cumulativeGrossForTaxYTD + cumulativeTaxableBenefitsYTD;
-        const adjustedGrossForTaxYTD = grossForTaxYTD - cumulativePensionYTD;
-
+        const grossForTaxYTD = cumulativeGrossYTD + cumulativeTaxableBenefitsYTD;
+        
         const personalAllowanceYTD = finalPersonalAllowance * (monthIndex / 12);
-
-        const taxableIncomeYTD = Math.max(0, adjustedGrossForTaxYTD - personalAllowanceYTD);
+        
+        const taxableIncomeYTD = Math.max(0, grossForTaxYTD - cumulativePensionYTD - personalAllowanceYTD);
+        
         const taxDueYTD = calculateTaxOnIncome(taxableIncomeYTD, region, taxYear);
-
+        
         const taxThisMonth = Math.max(0, taxDueYTD - cumulativeTaxPaidYTD);
         cumulativeTaxPaidYTD += taxThisMonth;
 
         const nicThisMonth = calculateNICForPeriod(earningsForNIAndLoan, taxYear);
         const studentLoanThisMonth = calculateStudentLoanForPeriod(earningsForNIAndLoan, taxYear, input);
 
-        const takeHomeThisMonth = grossThisMonthBeforeSacrifice - pensionThisMonth - taxThisMonth - nicThisMonth - studentLoanThisMonth;
+        const takeHomeThisMonth = grossThisMonth - pensionThisMonth - taxThisMonth - nicThisMonth - studentLoanThisMonth;
 
         finalMonthlyBreakdown.push({
             month,
-            gross: grossThisMonthBeforeSacrifice,
+            gross: grossThisMonth,
             pension: pensionThisMonth,
             tax: taxThisMonth,
             nic: nicThisMonth,
