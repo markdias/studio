@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A conversational AI flow for calculating tax and childcare support interactions.
@@ -7,6 +8,13 @@
 
 import {ai} from '@/ai/genkit';
 import { TaxChildcareChatInputSchema, TaxChildcareChatOutputSchema, type TaxChildcareChatInput, type TaxChildcareChatOutput } from '@/lib/definitions';
+import * as fs from 'fs';
+import * as path from 'path';
+
+// Read the content of the markdown file
+const claudeFilePath = path.join(process.cwd(), 'claude.md');
+const claudeContent = fs.readFileSync(claudeFilePath, 'utf-8');
+
 
 export type { TaxChildcareChatInput, TaxChildcareChatOutput } from '@/lib/definitions';
 
@@ -23,6 +31,12 @@ const prompt = ai.definePrompt({
   output: {schema: TaxChildcareChatOutputSchema},
   prompt: `You are an AI assistant designed to calculate UK income tax, National Insurance, and childcare support.
 Your goal is to collect user data by asking one question at a time.
+You MUST use the provided markdown file as your source of truth for all UK tax and childcare rules.
+
+**Reference UK Tax Rules:**
+\`\`\`markdown
+${claudeContent}
+\`\`\`
 
 **User's Financial Data (from calculator):**
 {{#if financialContext.salary}}
@@ -95,5 +109,3 @@ const taxChildcareChatFlow = ai.defineFlow(
     return output!;
   }
 );
-
-    
