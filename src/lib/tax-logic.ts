@@ -246,31 +246,31 @@ function calculateStudentLoanForAnnual(grossIncomeAnnual: number, year: TaxYear,
 
 export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationResults {
     const { taxYear, salary, bonus = 0, pensionContribution, region, taxableBenefits = 0, taxCode, bonusPensionContribution = 0, blind = false, hasPayRise, newSalary, payRiseMonth } = input;
-    const payRiseMonthIndex = (hasPayRise && newSalary) ? months.indexOf(payRiseMonth) : 12;
-    const bonusMonthIndex = bonus > 0 ? months.indexOf(input.bonusMonth) : -1;
+    
+    const payRiseMonthIndex = (hasPayRise && newSalary && newSalary > salary) ? months.indexOf(payRiseMonth) : 12;
 
     let totalSalary = 0;
     for (let i = 0; i < 12; i++) {
         const currentMonthlySalary = (i < payRiseMonthIndex) ? salary / 12 : (newSalary ?? salary) / 12;
         totalSalary += currentMonthlySalary;
     }
-    const annualSalary = totalSalary;
-
+    const grossAnnualSalary = totalSalary;
 
     // --- Base Annual Calculation (without bonus) ---
-    const basePension = annualSalary * (pensionContribution / 100);
-    const baseAdjustedNetIncome = annualSalary + taxableBenefits - basePension;
+    const basePension = grossAnnualSalary * (pensionContribution / 100);
+    const baseAdjustedNetIncome = grossAnnualSalary + taxableBenefits - basePension;
     const taxYearConfig = getTaxYearData(taxYear);
     const parsedCodeAllowance = parseTaxCode(taxCode, taxYearConfig.PERSONAL_ALLOWANCE_DEFAULT);
     const basePersonalAllowance = calculateAnnualPersonalAllowance(baseAdjustedNetIncome, parsedCodeAllowance, blind, taxYear);
-    const baseTaxableIncome = Math.max(0, annualSalary + taxableBenefits - basePension - basePersonalAllowance);
+    const baseTaxableIncome = Math.max(0, grossAnnualSalary + taxableBenefits - basePension - basePersonalAllowance);
     const baseAnnualTax = calculateTaxOnIncome(baseTaxableIncome, region, taxYear);
-    const baseGrossForNI = annualSalary - basePension;
+    
+    const baseGrossForNI = grossAnnualSalary - basePension;
     const baseAnnualNic = calculateNICForAnnual(baseGrossForNI, taxYear);
     const baseAnnualStudentLoan = calculateStudentLoanForAnnual(baseGrossForNI, taxYear, input);
 
     // --- Calculation with Bonus ---
-    const grossAnnualIncome = annualSalary + bonus;
+    const grossAnnualIncome = grossAnnualSalary + bonus;
     const annualPensionFromSalary = basePension;
     const annualPensionFromBonus = bonus * (bonusPensionContribution / 100);
     const annualPension = annualPensionFromSalary + annualPensionFromBonus;
@@ -280,8 +280,8 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
     const annualTaxableIncome = Math.max(0, grossAnnualIncome + taxableBenefits - annualPension - finalPersonalAllowance);
     
     const grossForNIAndLoan = grossAnnualIncome - annualPension;
-    const annualNicWithBonus = calculateNICForAnnual(grossForNIAndLoan, taxYear);
     const annualTaxWithBonus = calculateTaxOnIncome(annualTaxableIncome, region, taxYear);
+    const annualNicWithBonus = calculateNICForAnnual(grossForNIAndLoan, taxYear);
     const annualStudentLoanWithBonus = calculateStudentLoanForAnnual(grossForNIAndLoan, taxYear, input);
     
     const annualTakeHome = grossAnnualIncome - annualPension - annualTaxWithBonus - annualNicWithBonus - annualStudentLoanWithBonus;
@@ -292,12 +292,14 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
 
     // --- Monthly Breakdown ---
     const monthlyBreakdown: MonthlyResult[] = [];
+    const bonusMonthIndex = bonus > 0 ? months.indexOf(input.bonusMonth) : -1;
     
     for (let i = 0; i < 12; i++) {
         const month = months[i];
         const grossThisMonthFromSalary = (i < payRiseMonthIndex) ? salary / 12 : (newSalary ?? salary) / 12;
         const pensionThisMonthFromSalary = grossThisMonthFromSalary * (pensionContribution / 100);
         
+        // Use base annual calculations divided by 12 for consistent monthly figures
         let grossThisMonth = grossThisMonthFromSalary;
         let pensionThisMonth = pensionThisMonthFromSalary;
         let taxThisMonth = baseAnnualTax / 12;
