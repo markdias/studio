@@ -559,19 +559,27 @@ ${actionResult.data.summary}
     return payFrequencies
         .filter(f => selectedFrequencies.includes(f.id))
         .map(f => {
-            const multiplier = f.divisor / 12; // e.g., weekly is 52/12 = 4.333
+            let typicalGross: number, typicalTax: number, typicalNic: number, typicalPension: number, typicalStudentLoan: number, typicalTakeHome: number;
+
+            if (f.id === 'yearly') {
+                typicalGross = results.grossAnnualIncome;
+                typicalTax = results.annualTax;
+                typicalNic = results.annualNic;
+                typicalPension = results.annualPension;
+                typicalStudentLoan = results.annualStudentLoan;
+                typicalTakeHome = results.annualTakeHome;
+            } else {
+                const multiplier = f.divisor / 12; 
+                typicalGross = typicalPeriodData.gross * multiplier;
+                typicalTax = typicalPeriodData.tax * multiplier;
+                typicalNic = typicalPeriodData.nic * multiplier;
+                typicalPension = typicalPeriodData.pension * multiplier;
+                typicalStudentLoan = typicalPeriodData.studentLoan * multiplier;
+                typicalTakeHome = typicalGross - typicalTax - typicalNic - typicalPension - typicalStudentLoan;
+            }
             
-            // Typical Period Calculation (based on a non-bonus month)
-            const typicalGross = typicalPeriodData.gross * multiplier;
-            const typicalTax = typicalPeriodData.tax * multiplier;
-            const typicalNic = typicalPeriodData.nic * multiplier;
-            const typicalPension = typicalPeriodData.pension * multiplier;
-            const typicalStudentLoan = typicalPeriodData.studentLoan * multiplier;
-            const typicalTakeHome = typicalGross - typicalTax - typicalNic - typicalPension - typicalStudentLoan;
-            
-            // Bonus Period Calculation
             let bonusPeriodBreakdown = null;
-            if (oneTimeBonus > 0 && bonusPeriodData && f.id === 'monthly') { // Bonus breakdown only makes sense for monthly
+            if (oneTimeBonus > 0 && bonusPeriodData && f.id === 'monthly') { 
                 const typicalMonthlyTakeHome = typicalPeriodData.takeHome;
                 const bonusNetImpact = bonusPeriodData.takeHome - typicalMonthlyTakeHome;
 

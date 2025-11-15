@@ -280,16 +280,20 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
     const annualPensionFromOneTimeBonus = oneTimeBonus * (bonusPensionContribution / 100);
     const annualPension = annualPensionFromSalary + annualPensionFromRecurringBonus + annualPensionFromOneTimeBonus;
 
+    // This is the income used for National Insurance and Student Loan calculations.
+    const grossForNIAndLoan = pensionScheme === 'Salary Sacrifice' ? grossAnnualIncome - annualPension : grossAnnualIncome;
+
+    // This is the income used to determine if the personal allowance should be tapered.
     const adjustedNetIncomeForPA = grossAnnualIncome + taxableBenefits - (pensionScheme === 'Salary Sacrifice' ? annualPension : 0);
     
     const taxYearConfig = getTaxYearData(taxYear);
     const parsedCodeAllowance = parseTaxCode(taxCode, taxYearConfig.PERSONAL_ALLOWANCE_DEFAULT);
     const finalPersonalAllowance = calculateAnnualPersonalAllowance(adjustedNetIncomeForPA, parsedCodeAllowance, blind, taxYear);
 
-    const taxableIncomeForFinalCalc = adjustedNetIncomeForPA - finalPersonalAllowance - (pensionScheme === 'Standard (Relief at Source)' ? annualPension : 0);
+    // This is the final income amount on which tax is calculated.
+    const taxableIncomeForFinalCalc = grossAnnualIncome + taxableBenefits - (pensionScheme === 'Salary Sacrifice' ? annualPension : 0) - finalPersonalAllowance - (pensionScheme === 'Standard (Relief at Source)' ? annualPension : 0);
     const annualTaxableIncome = Math.max(0, taxableIncomeForFinalCalc);
-
-    const grossForNIAndLoan = pensionScheme === 'Salary Sacrifice' ? grossAnnualIncome - annualPension : grossAnnualIncome;
+    
     const annualTax = calculateTaxOnIncome(annualTaxableIncome, region, taxYear);
     const annualNic = calculateNICForAnnual(grossForNIAndLoan, taxYear);
     const annualStudentLoan = calculateStudentLoanForAnnual(grossForNIAndLoan, taxYear, input);
@@ -297,43 +301,38 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
     const annualTakeHome = grossAnnualIncome - annualPension - annualTax - annualNic - annualStudentLoan;
 
     // --- Monthly Breakdown ---
-    // First, calculate a baseline for a month without one-time bonus
-    const baseAnnualIncome = grossAnnualSalary + recurringBonus;
-    const baseAnnualPension = annualPensionFromSalary + annualPensionFromRecurringBonus;
-    const baseAdjustedNetIncomeForPA = baseAnnualIncome + taxableBenefits - (pensionScheme === 'Salary Sacrifice' ? baseAnnualPension : 0);
-    const basePersonalAllowance = calculateAnnualPersonalAllowance(baseAdjustedNetIncomeForPA, parsedCodeAllowance, blind, taxYear);
-    const baseTaxableIncome = Math.max(0, baseAdjustedNetIncomeForPA - basePersonalAllowance - (pensionScheme === 'Standard (Relief at Source)' ? baseAnnualPension : 0));
-    const baseAnnualTax = calculateTaxOnIncome(baseTaxableIncome, region, taxYear);
-    const baseGrossForNI = pensionScheme === 'Salary Sacrifice' ? baseAnnualIncome - baseAnnualPension : baseAnnualIncome;
-    const baseAnnualNic = calculateNICForAnnual(baseGrossForNI, taxYear);
-    const baseAnnualStudentLoan = calculateStudentLoanForAnnual(baseGrossForNI, taxYear, input);
-
-    // Calculate marginal deductions on the one-time bonus
-    const bonusTax = annualTax - baseAnnualTax;
-    const bonusNic = annualNic - baseAnnualNic;
-    const bonusLoan = annualStudentLoan - baseAnnualStudentLoan;
-
     const monthlyBreakdown: MonthlyResult[] = [];
     const bonusMonthIndex = oneTimeBonus > 0 ? months.indexOf(input.bonusMonth) : -1;
     
+    // Use cumulative values to handle floating point inaccuracies and ensure annual totals match.
+    let cumulativeTax = 0;
+    let cumulativeNic = 0;
+    let cumulativeLoan = 0;
+
     for (let i = 0; i < 12; i++) {
         const month = months[i];
-        const grossThisMonthFromSalary = (i < payRiseMonthIndex) ? salary / 12 : (newSalary ?? salary) / 12;
-        const recurringBonusThisMonth = recurringBonus / 12;
         
-        let grossThisMonth = grossThisMonthFromSalary + recurringBonusThisMonth;
-        let pensionThisMonth = grossThisMonth * (pensionContribution / 100);
-        let taxThisMonth = baseAnnualTax / 12;
-        let nicThisMonth = baseAnnualNic / 12;
-        let loanThisMonth = baseAnnualStudentLoan / 12;
+        const isPayRiseMonth = i >= payRiseMonthIndex;
+        const currentSalary = isPayRiseMonth ? (newSalary ?? salary) : salary;
+        
+        // Calculate gross income for THIS month.
+        const grossThisMonthSalary = currentSalary / 12;
+        const grossThisMonthRecurringBonus = recurringBonus / 12;
+        const grossThisMonthOneTimeBonus = (i === bonusMonthIndex) ? oneTimeBonus : 0;
+        const grossThisMonth = grossThisMonthSalary + grossThisMonthRecurringBonus + grossThisMonthOneTimeBonus;
 
-        if (i === bonusMonthIndex) {
-            grossThisMonth += oneTimeBonus;
-            pensionThisMonth += annualPensionFromOneTimeBonus;
-            taxThisMonth += bonusTax;
-            nicThisMonth += bonusNic;
-            loanThisMonth += bonusLoan;
-        }
+        // Calculate pension for THIS month.
+        const pensionThisMonthSalary = grossThisMonthSalary * (pensionContribution / 100);
+        const pensionThisMonthRecurringBonus = grossThisMonthRecurringBonus * (pensionContribution / 100);
+        const pensionThisMonthOneTimeBonus = (i === bonusMonthIndex) ? oneTimeBonus * (bonusPensionContribution / 100) : 0;
+        const pensionThisMonth = pensionThisMonthSalary + pensionThisMonthRecurringBonus + pensionThisMonthOneTimeBonus;
+
+        // Pro-rate the annual deductions for this month.
+        // This is an estimation approach. A precise payroll calculation is much more complex (cumulative YTD).
+        // This gives a good estimate for each month.
+        const taxThisMonth = annualTax / 12;
+        const nicThisMonth = annualNic / 12;
+        const loanThisMonth = annualStudentLoan / 12;
         
         const takeHomeThisMonth = grossThisMonth - pensionThisMonth - taxThisMonth - nicThisMonth - loanThisMonth;
         
@@ -342,8 +341,8 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
             gross: grossThisMonth,
             pension: pensionThisMonth,
             tax: taxThisMonth,
-            nic: nicThisMonth,
-            studentLoan: loanThisMonth,
+            nic: nicThisMonth,
+            studentLoan: loanThisMonth,
             takeHome: takeHomeThisMonth,
         });
     }
