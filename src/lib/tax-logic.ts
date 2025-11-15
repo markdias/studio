@@ -245,7 +245,11 @@ function calculateStudentLoanForAnnual(grossIncomeAnnual: number, year: TaxYear,
 
 
 export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationResults {
-    const { taxYear, salary, bonus = 0, pensionContribution, region, taxableBenefits = 0, taxCode, bonusPensionContribution = 0, blind = false, hasPayRise, newSalary, payRiseMonth } = input;
+    const { 
+      taxYear, salary, bonus = 0, pensionContribution, region, taxableBenefits = 0, 
+      taxCode, bonusPensionContribution = 0, blind = false, hasPayRise, newSalary, 
+      payRiseMonth, pensionScheme 
+    } = input;
     
     const payRiseMonthIndex = (hasPayRise && newSalary && newSalary > salary) ? months.indexOf(payRiseMonth) : 12;
 
@@ -258,14 +262,17 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
 
     // --- Base Annual Calculation (without bonus) ---
     const basePension = grossAnnualSalary * (pensionContribution / 100);
-    const baseAdjustedNetIncome = grossAnnualSalary + taxableBenefits - basePension;
+    const grossForTax = grossAnnualSalary - basePension;
+    const baseAdjustedNetIncome = grossForTax + taxableBenefits;
+
     const taxYearConfig = getTaxYearData(taxYear);
     const parsedCodeAllowance = parseTaxCode(taxCode, taxYearConfig.PERSONAL_ALLOWANCE_DEFAULT);
     const basePersonalAllowance = calculateAnnualPersonalAllowance(baseAdjustedNetIncome, parsedCodeAllowance, blind, taxYear);
-    const baseTaxableIncome = Math.max(0, grossAnnualSalary + taxableBenefits - basePension - basePersonalAllowance);
+    const baseTaxableIncome = Math.max(0, baseAdjustedNetIncome - basePersonalAllowance);
     const baseAnnualTax = calculateTaxOnIncome(baseTaxableIncome, region, taxYear);
     
-    const baseGrossForNI = grossAnnualSalary - basePension;
+    // For NI, pension is only deducted for Salary Sacrifice
+    const baseGrossForNI = pensionScheme === 'Salary Sacrifice' ? grossAnnualSalary - basePension : grossAnnualSalary;
     const baseAnnualNic = calculateNICForAnnual(baseGrossForNI, taxYear);
     const baseAnnualStudentLoan = calculateStudentLoanForAnnual(baseGrossForNI, taxYear, input);
 
@@ -275,14 +282,15 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
     const annualPensionFromBonus = bonus * (bonusPensionContribution / 100);
     const annualPension = annualPensionFromSalary + annualPensionFromBonus;
     
-    const adjustedNetIncomeForPA = grossAnnualIncome + taxableBenefits - annualPension;
+    const grossForTaxWithBonus = grossAnnualIncome - annualPension;
+    const adjustedNetIncomeForPA = grossForTaxWithBonus + taxableBenefits;
     const finalPersonalAllowance = calculateAnnualPersonalAllowance(adjustedNetIncomeForPA, parsedCodeAllowance, blind, taxYear);
-    const annualTaxableIncome = Math.max(0, grossAnnualIncome + taxableBenefits - annualPension - finalPersonalAllowance);
+    const annualTaxableIncome = Math.max(0, grossForTaxWithBonus - finalPersonalAllowance);
     
-    const grossForNIAndLoan = grossAnnualIncome - annualPension;
+    const grossForNIAndLoanWithBonus = pensionScheme === 'Salary Sacrifice' ? grossAnnualIncome - annualPension : grossAnnualIncome;
     const annualTaxWithBonus = calculateTaxOnIncome(annualTaxableIncome, region, taxYear);
-    const annualNicWithBonus = calculateNICForAnnual(grossForNIAndLoan, taxYear);
-    const annualStudentLoanWithBonus = calculateStudentLoanForAnnual(grossForNIAndLoan, taxYear, input);
+    const annualNicWithBonus = calculateNICForAnnual(grossForNIAndLoanWithBonus, taxYear);
+    const annualStudentLoanWithBonus = calculateStudentLoanForAnnual(grossForNIAndLoanWithBonus, taxYear, input);
     
     const annualTakeHome = grossAnnualIncome - annualPension - annualTaxWithBonus - annualNicWithBonus - annualStudentLoanWithBonus;
 

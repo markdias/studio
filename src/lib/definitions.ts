@@ -13,6 +13,9 @@ export type Month = (typeof months)[number];
 export const taxYears = ["2023/24", "2024/25", "2025/26"] as const;
 export type TaxYear = (typeof taxYears)[number];
 
+export const pensionSchemes = ["Salary Sacrifice", "Standard (Relief at Source)"] as const;
+export type PensionScheme = (typeof pensionSchemes)[number];
+
 
 export const taxCalculatorSchema = z.object({
   taxYear: z.enum(taxYears).default("2024/25"),
@@ -33,6 +36,7 @@ export const taxCalculatorSchema = z.object({
   bonusMonth: z.enum(months).default("April"),
 
   // Pension fields
+  pensionScheme: z.enum(pensionSchemes).default("Salary Sacrifice"),
   pensionContribution: z.coerce.number().min(0, "Pension contribution cannot be negative.").max(100, "Pension contribution cannot exceed 100%.").optional().default(0),
   bonusPensionContribution: z.coerce.number().min(0, "Bonus contribution cannot be negative.").max(100, "Bonus contribution cannot be over 100%").optional().default(0),
   enablePensionComparison: z.boolean().optional().default(false),

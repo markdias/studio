@@ -52,7 +52,7 @@ import { PieChart, Pie, Cell } from "recharts";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 
-import { taxCalculatorSchema, type TaxCalculatorSchema, type CalculationResults, regions, months, taxYears, type ChildcareAdviceOutput, ChatMessage } from "@/lib/definitions";
+import { taxCalculatorSchema, type TaxCalculatorSchema, type CalculationResults, regions, months, taxYears, type ChildcareAdviceOutput, ChatMessage, pensionSchemes } from "@/lib/definitions";
 import { calculateTakeHomePay, getTaxYearData } from "@/lib/tax-logic";
 import { generateTaxSavingTipsAction, generateChildcareAdviceAction, financialChatAction, taxChildcareChatAction } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
@@ -61,6 +61,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 
 
 const initialValues: TaxCalculatorSchema = {
@@ -82,6 +83,7 @@ const initialValues: TaxCalculatorSchema = {
   bonusMonth: "April",
   
   // Pension
+  pensionScheme: "Salary Sacrifice",
   pensionContribution: 5,
   bonusPensionContribution: 0,
   enablePensionComparison: false,
@@ -156,13 +158,42 @@ export default function TaxCalculator() {
 
   const watchedValues = form.watch();
   
-    const {
-    taxYear, salary, region, taxCode, showBonus, bonus, bonusMonth,
-    showPension, pensionContribution, bonusPensionContribution, enablePensionComparison, adjustedPensionContribution,
-    showBenefits, taxableBenefits, blind, showPayRise, hasPayRise, newSalary, payRiseMonth,
-    showChildcareCalculator, numberOfChildren, daysPerWeekInChildcare, dailyChildcareRate, partnerIncome,
-    registeredChildcareProvider, childDisabled, claimingUniversalCredit, claimingTaxFreeChildcare,
-    showStudentLoan, studentLoanPlan1, studentLoanPlan2, studentLoanPlan4, studentLoanPlan5, postgraduateLoan
+  const {
+    taxYear,
+    salary,
+    region,
+    taxCode,
+    showBonus,
+    bonus,
+    bonusMonth,
+    showPension,
+    pensionScheme,
+    pensionContribution,
+    bonusPensionContribution,
+    enablePensionComparison,
+    adjustedPensionContribution,
+    showBenefits,
+    taxableBenefits,
+    blind,
+    showPayRise,
+    hasPayRise,
+    newSalary,
+    payRiseMonth,
+    showChildcareCalculator,
+    numberOfChildren,
+    daysPerWeekInChildcare,
+    dailyChildcareRate,
+    partnerIncome,
+    registeredChildcareProvider,
+    childDisabled,
+    claimingUniversalCredit,
+    claimingTaxFreeChildcare,
+    showStudentLoan,
+    studentLoanPlan1,
+    studentLoanPlan2,
+    studentLoanPlan4,
+    studentLoanPlan5,
+    postgraduateLoan,
   } = watchedValues;
 
   const mainCalculation = useMemo(() => {
@@ -173,7 +204,7 @@ export default function TaxCalculator() {
     return null;
   }, [
     taxYear, salary, region, taxCode, showBonus, bonus, bonusMonth,
-    showPension, pensionContribution, bonusPensionContribution, enablePensionComparison, adjustedPensionContribution,
+    showPension, pensionScheme, pensionContribution, bonusPensionContribution, enablePensionComparison, adjustedPensionContribution,
     showBenefits, taxableBenefits, blind, showPayRise, hasPayRise, newSalary, payRiseMonth,
     showChildcareCalculator, numberOfChildren, daysPerWeekInChildcare, dailyChildcareRate, partnerIncome,
     registeredChildcareProvider, childDisabled, claimingUniversalCredit, claimingTaxFreeChildcare,
@@ -191,7 +222,7 @@ export default function TaxCalculator() {
     return null;
   }, [
     taxYear, salary, region, taxCode, showBonus, bonus, bonusMonth,
-    showPension, pensionContribution, bonusPensionContribution, enablePensionComparison, adjustedPensionContribution,
+    showPension, pensionScheme, pensionContribution, bonusPensionContribution, enablePensionComparison, adjustedPensionContribution,
     showBenefits, taxableBenefits, blind, showPayRise, hasPayRise, newSalary, payRiseMonth,
     showChildcareCalculator, numberOfChildren, daysPerWeekInChildcare, dailyChildcareRate, partnerIncome,
     registeredChildcareProvider, childDisabled, claimingUniversalCredit, claimingTaxFreeChildcare,
@@ -1107,6 +1138,35 @@ ${actionResult.data.summary}
                                     </DialogContent>
                                 </Dialog>
                                 </div>
+                                <FormField
+                                    control={form.control}
+                                    name="pensionScheme"
+                                    render={({ field }) => (
+                                        <FormItem className="space-y-3">
+                                        <FormLabel>Pension Scheme</FormLabel>
+                                        <FormControl>
+                                            <RadioGroup
+                                            onValueChange={field.onChange}
+                                            defaultValue={field.value}
+                                            className="flex flex-col space-y-1"
+                                            >
+                                            {pensionSchemes.map((scheme) => (
+                                                <FormItem key={scheme} className="flex items-center space-x-3 space-y-0">
+                                                    <FormControl>
+                                                        <RadioGroupItem value={scheme} />
+                                                    </FormControl>
+                                                    <FormLabel className="font-normal">
+                                                        {scheme}
+                                                    </FormLabel>
+                                                </FormItem>
+                                            ))}
+                                            </RadioGroup>
+                                        </FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                    />
+                                <Separator />
                                 <FormField
                                     control={form.control}
                                     name="pensionContribution"
