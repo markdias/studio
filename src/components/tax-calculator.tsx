@@ -201,25 +201,16 @@ export default function TaxCalculator() {
 
     if (results) {
       const taxYearData = getTaxYearData(watchedValues.taxYear);
-      const grossIncome = results.grossAnnualIncome;
-      const adjustedNetIncome = grossIncome - results.annualPension;
-      
-       if (adjustedNetIncome <= taxYearData.PERSONAL_ALLOWANCE_DEFAULT) {
-        const newTaxCode = defaultTaxCodes[watchedValues.taxYear];
-        if (form.getValues('taxCode') !== newTaxCode) {
-            form.setValue('taxCode', newTaxCode, { shouldValidate: true, shouldDirty: true });
-        }
-        return;
-      }
-      
+      const personalAllowance = results.personalAllowance;
+
       let newTaxCode = defaultTaxCodes[watchedValues.taxYear];
-      
-      if (adjustedNetIncome > taxYearData.PERSONAL_ALLOWANCE_DEFAULT && adjustedNetIncome > taxYearData.PA_TAPER_THRESHOLD) {
-        if (results.personalAllowance <= 0) {
+
+      if (personalAllowance < taxYearData.PERSONAL_ALLOWANCE_DEFAULT) {
+        if (personalAllowance <= 0) {
           newTaxCode = '0T';
         } else {
           // Round down to nearest 10 and add 'L'
-          const allowanceCode = Math.floor(results.personalAllowance / 10);
+          const allowanceCode = Math.floor(personalAllowance / 10);
           newTaxCode = `${allowanceCode}L`;
         }
       }
@@ -228,7 +219,7 @@ export default function TaxCalculator() {
          form.setValue('taxCode', newTaxCode, { shouldValidate: true, shouldDirty: true });
       }
     }
-  }, [results?.grossAnnualIncome, results?.personalAllowance, watchedValues.taxYear, isTaxCodeManuallySet, isTaxCodeEditing, form]);
+  }, [results?.personalAllowance, watchedValues.taxYear, isTaxCodeManuallySet, isTaxCodeEditing, form]);
 
 
   useEffect(() => {
@@ -1645,3 +1636,5 @@ ${actionResult.data.summary}
     </FormProvider>
   );
 }
+
+    
