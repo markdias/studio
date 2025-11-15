@@ -81,6 +81,7 @@ const initialValues: TaxCalculatorSchema = {
   
   // Bonus
   bonus: 0,
+  bonusPayFrequency: 'one-time',
   bonusMonth: "April",
   
   // Pension
@@ -116,6 +117,13 @@ const initialValues: TaxCalculatorSchema = {
   studentLoanPlan5: false,
   postgraduateLoan: false,
 };
+
+const bonusFrequencies = [
+    { id: 'one-time', label: 'One-Time' },
+    { id: 'monthly', label: 'Monthly' },
+    { id: 'quarterly', label: 'Quarterly' },
+    { id: 'yearly', label: 'Annual' },
+] as const;
 
 const defaultTaxCodes: Record<string, string> = {
     "2023/24": "1257L",
@@ -160,7 +168,7 @@ export default function TaxCalculator() {
   const watchedValues = form.watch();
   
   const {
-    taxYear, salary, region, taxCode, showBonus, bonus, bonusMonth,
+    taxYear, salary, region, taxCode, showBonus, bonus, bonusPayFrequency, bonusMonth,
     showPension, pensionScheme, pensionContribution, bonusPensionContribution, enablePensionComparison, adjustedPensionContribution,
     showBenefits, taxableBenefits, blind, showPayRise, hasPayRise, newSalary, payRiseMonth,
     showChildcareCalculator, numberOfChildren, daysPerWeekInChildcare, dailyChildcareRate, partnerIncome,
@@ -176,8 +184,8 @@ export default function TaxCalculator() {
     }
     return null;
   }, [
-    taxYear, salary, region, taxCode, showBonus, bonus, bonusMonth,
-    showPension, pensionScheme, pensionContribution, bonusPensionContribution, enablePensionComparison, adjustedPensionContribution,
+    taxYear, salary, region, taxCode, showBonus, bonus, bonusPayFrequency, bonusMonth,
+    showPension, pensionScheme, pensionContribution, bonusPensionContribution,
     showBenefits, taxableBenefits, blind, showPayRise, hasPayRise, newSalary, payRiseMonth,
     showChildcareCalculator, numberOfChildren, daysPerWeekInChildcare, dailyChildcareRate, partnerIncome,
     registeredChildcareProvider, childDisabled, claimingUniversalCredit, claimingTaxFreeChildcare,
@@ -194,7 +202,7 @@ export default function TaxCalculator() {
     }
     return null;
   }, [
-    taxYear, salary, region, taxCode, showBonus, bonus, bonusMonth,
+    taxYear, salary, region, taxCode, showBonus, bonus, bonusPayFrequency, bonusMonth,
     showPension, pensionScheme, pensionContribution, bonusPensionContribution, enablePensionComparison, adjustedPensionContribution,
     showBenefits, taxableBenefits, blind, showPayRise, hasPayRise, newSalary, payRiseMonth,
     showChildcareCalculator, numberOfChildren, daysPerWeekInChildcare, dailyChildcareRate, partnerIncome,
@@ -204,11 +212,8 @@ export default function TaxCalculator() {
 
   useEffect(() => {
     setResults(mainCalculation);
-  }, [mainCalculation]);
-
-  useEffect(() => {
     setAdjustedResults(adjustedCalculation);
-  }, [adjustedCalculation]);
+  }, [mainCalculation, adjustedCalculation]);
 
 
   useEffect(() => {
@@ -232,7 +237,7 @@ export default function TaxCalculator() {
      if (taxChildcareChatHistory.length > 0) {
       setTaxChildcareChatHistory([]);
     }
-  }, [watchedValues.salary]);
+  }, [watchedValues.salary, watchedValues.bonus]);
 
 
    useEffect(() => {
@@ -351,7 +356,7 @@ export default function TaxCalculator() {
     return {
       taxYear: values.taxYear,
       salary: values.salary,
-      bonus: values.bonus,
+      bonus: mainCalculation?.annualBonus,
       pensionContribution: values.pensionContribution,
       region: values.region,
       taxCode: values.taxCode,
@@ -387,16 +392,12 @@ export default function TaxCalculator() {
     setIsTaxChatLoading(true);
     setTaxChatHistory([]);
 
-    const { salary, bonus, pensionContribution, taxableBenefits, region, bonusPensionContribution } = parsed.data;
-
-    const pensionFromSalary = salary * (pensionContribution / 100);
-    const pensionFromBonus = (bonus ?? 0) * ((bonusPensionContribution ?? 0) / 100);
-    const pensionAmount = pensionFromSalary + pensionFromBonus;
+    const { salary, region } = parsed.data;
 
     const actionResult = await generateTaxSavingTipsAction({
       salary: salary,
-      bonus: bonus,
-      pensionContributions: pensionAmount,
+      bonus: results?.annualBonus,
+      pensionContributions: results?.annualPension,
       otherTaxableBenefits: taxableBenefits,
       region: region,
     });
@@ -440,7 +441,7 @@ export default function TaxCalculator() {
   const handleGenerateChildcareAdvice = async () => {
     const values = form.getValues();
     const parsed = taxCalculatorSchema.safeParse(values);
-    if (!parsed.success) {
+    if (!parsed.success || !mainCalculation) {
       toast({
         title: "Invalid Input",
         description: "Please check your inputs before generating advice.",
@@ -462,7 +463,7 @@ export default function TaxCalculator() {
     setChildcareChatHistory([]);
 
     const actionResult = await generateChildcareAdviceAction({
-      annualGrossIncome: parsed.data.salary + (parsed.data.bonus ?? 0),
+      annualGrossIncome: mainCalculation.grossAnnualIncome,
       taxableBenefits: parsed.data.taxableBenefits ?? 0,
       pensionContributionPercentage: parsed.data.pensionContribution,
       numberOfChildren: parsed.data.numberOfChildren,
@@ -551,32 +552,48 @@ ${actionResult.data.summary}
   const salaryBreakdown = useMemo(() => {
     if (!selectedFrequencies || selectedFrequencies.length === 0 || !results) return [];
 
+    const oneTimeBonus = bonusPayFrequency === 'one-time' ? bonus : 0;
+
     return payFrequencies
       .filter(f => selectedFrequencies.includes(f.id))
       .map(f => {
         const divisor = f.divisor;
-        const grossPay = results.grossAnnualIncome / divisor;
-        // Note: these are simplified averages and don't account for bonus timing
-        const tax = results.annualTax / divisor;
-        const nic = results.annualNic / divisor;
-        const pension = results.annualPension / divisor;
-        const studentLoan = results.annualStudentLoan / divisor;
-        const takeHome = results.annualTakeHome / divisor;
+        const typicalGross = (results.grossAnnualIncome - results.annualBonus) / divisor;
+        const typicalTax = (results.annualTax - (results.monthlyBreakdown.find(m => m.month === bonusMonth)?.tax ?? 0 - (results.annualTax / 12))) / divisor;
+        const typicalNic = (results.annualNic - (results.monthlyBreakdown.find(m => m.month === bonusMonth)?.nic ?? 0 - (results.annualNic / 12))) / divisor;
+        const typicalPension = (results.annualPension - (results.monthlyBreakdown.find(m => m.month === bonusMonth)?.pension ?? 0 - (results.annualPension / 12))) / divisor;
+        const typicalStudentLoan = (results.annualStudentLoan - (results.monthlyBreakdown.find(m => m.month === bonusMonth)?.studentLoan ?? 0 - (results.annualStudentLoan / 12))) / divisor;
+        const typicalTakeHome = typicalGross - typicalTax - typicalNic - typicalPension - typicalStudentLoan;
+
+        const bonusPeriodData = results.monthlyBreakdown.find(m => m.month === bonusMonth);
         
+        let bonusPeriodBreakdown = null;
+        if (oneTimeBonus > 0 && bonusPeriodData) {
+            bonusPeriodBreakdown = [
+                { metric: 'Gross Pay', value: bonusPeriodData.gross },
+                { metric: 'Income Tax', value: -bonusPeriodData.tax },
+                { metric: 'National Insurance', value: -bonusPeriodData.nic },
+                { metric: 'Pension Contribution', value: -bonusPeriodData.pension },
+                { metric: 'Student Loan', value: -bonusPeriodData.studentLoan },
+                { metric: 'Take-Home Pay', value: bonusPeriodData.takeHome, isTotal: true },
+            ].filter(item => item.value !== 0 || item.metric === 'Gross Pay' || item.metric === 'Take-Home Pay');
+        }
+
         return {
             id: f.id,
             label: f.label,
-            breakdown: [
-                { metric: 'Gross Pay', value: grossPay },
-                { metric: 'Income Tax', value: -tax },
-                { metric: 'National Insurance', value: -nic },
-                { metric: 'Pension Contribution', value: -pension },
-                { metric: 'Student Loan', value: -studentLoan },
-                { metric: 'Take-Home Pay', value: takeHome, isTotal: true },
-            ].filter(item => item.value !== 0 || item.metric === 'Gross Pay' || item.metric === 'Take-Home Pay')
+            typicalBreakdown: [
+                { metric: 'Gross Pay', value: typicalGross },
+                { metric: 'Income Tax', value: -typicalTax },
+                { metric: 'National Insurance', value: -typicalNic },
+                { metric: 'Pension Contribution', value: -typicalPension },
+                { metric: 'Student Loan', value: -typicalStudentLoan },
+                { metric: 'Take-Home Pay', value: typicalTakeHome, isTotal: true },
+            ].filter(item => item.value !== 0 || item.metric === 'Gross Pay' || item.metric === 'Take-Home Pay'),
+            bonusPeriodBreakdown: bonusPeriodBreakdown
         };
       });
-  }, [selectedFrequencies, results]);
+  }, [selectedFrequencies, results, bonus, bonusPayFrequency, bonusMonth]);
 
 
  const renderFormattedText = (text: string) => {
@@ -1077,20 +1094,40 @@ ${actionResult.data.summary}
                                 </TabsList>
                                 {salaryBreakdown.map((item) => (
                                     <TabsContent key={item.id} value={item.id}>
-                                        <Card className="bg-muted/30">
-                                            <CardContent className="p-4">
-                                                <Table>
-                                                    <TableBody>
-                                                        {item.breakdown.map((row) => (
-                                                            <TableRow key={row.metric} className={row.isTotal ? "font-bold" : ""}>
-                                                                <TableCell>{row.metric}</TableCell>
-                                                                <TableCell className="text-right">{formatCurrency(row.value)}</TableCell>
-                                                            </TableRow>
-                                                        ))}
-                                                    </TableBody>
-                                                </Table>
-                                            </CardContent>
-                                        </Card>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <Card className="bg-muted/30">
+                                                <CardHeader><CardTitle className="text-base">Typical Period</CardTitle></CardHeader>
+                                                <CardContent>
+                                                    <Table>
+                                                        <TableBody>
+                                                            {item.typicalBreakdown.map((row) => (
+                                                                <TableRow key={row.metric} className={row.isTotal ? "font-bold" : ""}>
+                                                                    <TableCell>{row.metric}</TableCell>
+                                                                    <TableCell className="text-right">{formatCurrency(row.value)}</TableCell>
+                                                                </TableRow>
+                                                            ))}
+                                                        </TableBody>
+                                                    </Table>
+                                                </CardContent>
+                                            </Card>
+                                             {item.bonusPeriodBreakdown && (
+                                                <Card className="bg-blue-500/10 border-blue-500/20">
+                                                    <CardHeader><CardTitle className="text-base">Bonus Period ({bonusMonth})</CardTitle></CardHeader>
+                                                    <CardContent>
+                                                        <Table>
+                                                            <TableBody>
+                                                                {item.bonusPeriodBreakdown.map((row) => (
+                                                                    <TableRow key={row.metric} className={row.isTotal ? "font-bold" : ""}>
+                                                                        <TableCell>{row.metric}</TableCell>
+                                                                        <TableCell className="text-right">{formatCurrency(row.value)}</TableCell>
+                                                                    </TableRow>
+                                                                ))}
+                                                            </TableBody>
+                                                        </Table>
+                                                    </CardContent>
+                                                </Card>
+                                             )}
+                                        </div>
                                     </TabsContent>
                                 ))}
                             </Tabs>
@@ -1102,44 +1139,70 @@ ${actionResult.data.summary}
                         {watchedValues.showBonus && (
                             <div className="space-y-4 rounded-md border p-4">
                                 <h3 className="font-semibold text-base">Bonus</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-6">
                                 <FormField
-                                control={form.control}
-                                name="bonus"
-                                render={({ field }) => (
-                                    <FormItem>
-                                    <FormLabel>Annual Bonus (£)</FormLabel>
-                                    <FormControl>
-                                        <Input type="number" placeholder="e.g., 5000" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                    </FormItem>
-                                )}
-                                />
-                                <FormField
-                                control={form.control}
-                                name="bonusMonth"
-                                render={({ field }) => (
-                                    <FormItem>
-                                    <FormLabel>Bonus Month</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={(watchedValues.bonus ?? 0) <= 0}>
+                                    control={form.control}
+                                    name="bonus"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>Bonus Amount (£)</FormLabel>
                                         <FormControl>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select bonus month" />
-                                        </SelectTrigger>
+                                            <Input type="number" placeholder="e.g., 5000" {...field} />
                                         </FormControl>
-                                        <SelectContent>
-                                        {months.map((month) => (
-                                            <SelectItem key={month} value={month}>
-                                            {month}
-                                            </SelectItem>
-                                        ))}
-                                        </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                    </FormItem>
-                                )}
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
                                 />
+                                <FormField
+                                    control={form.control}
+                                    name="bonusPayFrequency"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>Bonus Frequency</FormLabel>
+                                         <Select onValueChange={field.onChange} defaultValue={field.value} disabled={(watchedValues.bonus ?? 0) <= 0}>
+                                            <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select frequency" />
+                                            </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                            {bonusFrequencies.map((freq) => (
+                                                <SelectItem key={freq.id} value={freq.id}>
+                                                {freq.label}
+                                                </SelectItem>
+                                            ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                {watchedValues.bonusPayFrequency === 'one-time' && 
+                                    <FormField
+                                        control={form.control}
+                                        name="bonusMonth"
+                                        render={({ field }) => (
+                                            <FormItem className="sm:col-span-2">
+                                            <FormLabel>Bonus Month</FormLabel>
+                                            <Select onValueChange={field.onChange} defaultValue={field.value} disabled={(watchedValues.bonus ?? 0) <= 0}>
+                                                <FormControl>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select bonus month" />
+                                                </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                {months.map((month) => (
+                                                    <SelectItem key={month} value={month}>
+                                                    {month}
+                                                    </SelectItem>
+                                                ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                }
                                 </div>
                             </div>
                         )}
@@ -1271,7 +1334,7 @@ ${actionResult.data.summary}
                                     name="bonusPensionContribution"
                                     render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Bonus Contribution ({field.value}%)</FormLabel>
+                                        <FormLabel>One-Time Bonus Contribution ({field.value}%)</FormLabel>
                                         <FormControl>
                                             <Slider
                                             min={0}
@@ -1279,7 +1342,7 @@ ${actionResult.data.summary}
                                             step={1}
                                             value={[field.value ?? 0]}
                                             onValueChange={(value) => field.onChange(value[0])}
-                                            disabled={(watchedValues.bonus ?? 0) <= 0}
+                                            disabled={(watchedValues.bonus ?? 0) <= 0 || bonusPayFrequency !== 'one-time'}
                                             />
                                         </FormControl>
                                         <FormMessage />

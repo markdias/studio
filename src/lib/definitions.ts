@@ -1,4 +1,5 @@
 
+
 import { z } from "zod";
 
 export const regions = ["England", "Scotland", "Wales", "Northern Ireland"] as const;
@@ -17,14 +18,22 @@ export const pensionSchemes = ["Salary Sacrifice", "Standard (Relief at Source)"
 export type PensionScheme = (typeof pensionSchemes)[number];
 
 export const payFrequencies = [
-    { id: 'yearly', label: 'Yearly', divisor: 1 },
-    { id: 'monthly', label: 'Monthly', divisor: 12 },
-    { id: '4-weekly', label: '4 Weekly', divisor: 13 },
-    { id: '2-weekly', label: '2 Weekly', divisor: 26 },
-    { id: 'weekly', label: 'Weekly', divisor: 52 },
-    { id: 'daily', label: 'Daily', divisor: 260 },
+    { id: 'yearly', label: 'Yearly', divisor: 1, multiplier: 1 },
+    { id: 'monthly', label: 'Monthly', divisor: 12, multiplier: 12 },
+    { id: '4-weekly', label: '4 Weekly', divisor: 13, multiplier: 13 },
+    { id: '2-weekly', label: '2 Weekly', divisor: 26, multiplier: 26 },
+    { id: 'weekly', label: 'Weekly', divisor: 52, multiplier: 52 },
+    { id: 'daily', label: 'Daily', divisor: 260, multiplier: 260 },
 ] as const;
 export type PayFrequency = (typeof payFrequencies)[number]['id'];
+
+const bonusFrequencies = [
+    { id: 'yearly', label: 'Annual', multiplier: 1 },
+    { id: 'monthly', label: 'Monthly', multiplier: 12 },
+    { id: 'quarterly', label: 'Quarterly', multiplier: 4 },
+    { id: 'one-time', label: 'One-Time', multiplier: 1 },
+] as const;
+export type BonusFrequency = (typeof bonusFrequencies)[number]['id'];
 
 
 export const taxCalculatorSchema = z.object({
@@ -44,6 +53,7 @@ export const taxCalculatorSchema = z.object({
   
   // Bonus fields
   bonus: z.coerce.number().min(0, "Bonus must be a positive number.").optional().default(0),
+  bonusPayFrequency: z.enum(['yearly', 'monthly', 'quarterly', 'one-time']).default('one-time'),
   bonusMonth: z.enum(months).default("April"),
 
   // Pension fields
@@ -112,6 +122,7 @@ export interface CalculationResults {
   effectiveTaxRate: number;
   breakdown: { name: string; value: number; fill: string }[];
   monthlyBreakdown: MonthlyResult[];
+  annualBonus: number;
 }
 
 // AI Flow Schemas
