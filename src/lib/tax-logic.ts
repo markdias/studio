@@ -270,38 +270,40 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
         totalSalary += currentMonthlySalary;
     }
     const grossAnnualSalary = totalSalary;
+    const grossAnnualIncome = grossAnnualSalary + annualBonus;
 
-    // --- Base Annual Calculation (without one-time bonus) ---
+    // --- Base Annual Calculation (without one-time bonus for comparison) ---
     const recurringBonus = bonusPayFrequency !== 'one-time' ? annualBonus : 0;
     const salaryAndRecurringBonus = grossAnnualSalary + recurringBonus;
     
     const basePension = salaryAndRecurringBonus * (pensionContribution / 100);
-    const grossForTaxBase = salaryAndRecurringBonus - basePension;
-    const baseAdjustedNetIncome = grossForTaxBase + taxableBenefits;
+    const baseGrossForTax = salaryAndRecurringBonus; // NI is on this figure for Standard pension
+    const baseAdjustedNetIncomeForPA = baseGrossForTax + taxableBenefits - (pensionScheme === 'Salary Sacrifice' ? basePension : 0);
 
     const taxYearConfig = getTaxYearData(taxYear);
     const parsedCodeAllowance = parseTaxCode(taxCode, taxYearConfig.PERSONAL_ALLOWANCE_DEFAULT);
-    const basePersonalAllowance = calculateAnnualPersonalAllowance(baseAdjustedNetIncome, parsedCodeAllowance, blind, taxYear);
-    const baseTaxableIncome = Math.max(0, baseAdjustedNetIncome - basePersonalAllowance);
+    const basePersonalAllowance = calculateAnnualPersonalAllowance(baseAdjustedNetIncomeForPA, parsedCodeAllowance, blind, taxYear);
+    
+    const baseTaxableIncome = Math.max(0, baseAdjustedNetIncomeForPA - basePersonalAllowance - (pensionScheme === 'Standard (Relief at Source)' ? basePension : 0));
     const baseAnnualTax = calculateTaxOnIncome(baseTaxableIncome, region, taxYear);
     
     const baseGrossForNI = pensionScheme === 'Salary Sacrifice' ? salaryAndRecurringBonus - basePension : salaryAndRecurringBonus;
     const baseAnnualNic = calculateNICForAnnual(baseGrossForNI, taxYear);
     const baseAnnualStudentLoan = calculateStudentLoanForAnnual(baseGrossForNI, taxYear, input);
 
-    // --- Calculation with one-time Bonus ---
+    // --- Final Calculation with all income sources ---
     const oneTimeBonus = bonusPayFrequency === 'one-time' ? bonus : 0;
-    const grossAnnualIncome = grossAnnualSalary + annualBonus;
     
     const annualPensionFromSalary = basePension;
     const annualPensionFromBonus = oneTimeBonus * (bonusPensionContribution / 100);
     const annualPension = annualPensionFromSalary + annualPensionFromBonus;
     
-    const grossForTaxWithBonus = grossAnnualIncome - annualPension;
-    const adjustedNetIncomeForPA = grossForTaxWithBonus + taxableBenefits;
+    const adjustedNetIncomeForPA = grossAnnualIncome + taxableBenefits - (pensionScheme === 'Salary Sacrifice' ? annualPension : 0);
     const finalPersonalAllowance = calculateAnnualPersonalAllowance(adjustedNetIncomeForPA, parsedCodeAllowance, blind, taxYear);
-    const annualTaxableIncome = Math.max(0, adjustedNetIncomeForPA - finalPersonalAllowance);
     
+    const taxableIncomeForFinalCalc = adjustedNetIncomeForPA - finalPersonalAllowance - (pensionScheme === 'Standard (Relief at Source)' ? annualPension : 0);
+    const annualTaxableIncome = Math.max(0, taxableIncomeForFinalCalc);
+
     const grossForNIAndLoanWithBonus = pensionScheme === 'Salary Sacrifice' ? grossAnnualIncome - annualPension : grossAnnualIncome;
     const annualTaxWithBonus = calculateTaxOnIncome(annualTaxableIncome, region, taxYear);
     const annualNicWithBonus = calculateNICForAnnual(grossForNIAndLoanWithBonus, taxYear);
@@ -322,7 +324,6 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
         const grossThisMonthFromSalary = (i < payRiseMonthIndex) ? salary / 12 : (newSalary ?? salary) / 12;
         const recurringBonusThisMonth = recurringBonus / 12;
         
-        // Use base annual calculations divided by 12 for consistent monthly figures
         let grossThisMonth = grossThisMonthFromSalary + recurringBonusThisMonth;
         let pensionThisMonth = grossThisMonth * (pensionContribution / 100);
         let taxThisMonth = baseAnnualTax / 12;
