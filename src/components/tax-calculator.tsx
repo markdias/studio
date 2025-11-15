@@ -45,7 +45,7 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 
 import { taxCalculatorSchema, type TaxCalculatorSchema, type CalculationResults, regions, months, taxYears, type ChildcareAdviceOutput, ChatMessage } from "@/lib/definitions";
-import { calculateTakeHomePay, getTaxYearData, parseTaxCode } from "@/lib/tax-logic";
+import { calculateTakeHomePay, getTaxYearData } from "@/lib/tax-logic";
 import { generateTaxSavingTipsAction, generateChildcareAdviceAction, financialChatAction, taxChildcareChatAction } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { Slider } from "@/components/ui/slider";
@@ -1645,7 +1645,3 @@ ${actionResult.data.summary}
     </FormProvider>
   );
 }
-
-    
-
-    
