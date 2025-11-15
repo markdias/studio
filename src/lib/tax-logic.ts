@@ -262,7 +262,7 @@ export function calculateTakeHomePay(input: TaxCalculatorSchema): CalculationRes
     const payRiseMonthIndex = (hasPayRise && newSalary && newSalary > salary) ? months.indexOf(payRiseMonth) : 12;
     
     const bonusMultiplier = bonusFrequencyMap[bonusPayFrequency] || 1;
-    const annualBonus = bonusPayFrequency === 'one-time' ? bonus : bonus * bonusMultiplier;
+    const annualBonus = bonus > 0 ? (bonusPayFrequency === 'one-time' ? bonus : bonus * bonusMultiplier) : 0;
 
     let totalSalary = 0;
     for (let i = 0; i < 12; i++) {
