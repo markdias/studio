@@ -549,30 +549,34 @@ ${actionResult.data.summary}
     new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(value);
 
   const salaryBreakdown = useMemo(() => {
-    if (!selectedFrequencies || selectedFrequencies.length === 0) return [];
-    
-    const annualSalary = watchedValues.salary || 0;
-    
-    const getGrossPay = (frequency: string) => {
-        switch(frequency) {
-            case 'yearly': return annualSalary;
-            case 'monthly': return annualSalary / 12;
-            case '4-weekly': return annualSalary / 13;
-            case '2-weekly': return annualSalary / 26;
-            case 'weekly': return annualSalary / 52;
-            case 'daily': return annualSalary / 260; // Assuming 5 work days a week for 52 weeks
-            default: return 0;
-        }
-    };
-    
+    if (!selectedFrequencies || selectedFrequencies.length === 0 || !results) return [];
+
     return payFrequencies
-        .filter(f => selectedFrequencies.includes(f.id))
-        .map(f => ({
-            frequency: f.label,
-            grossPay: getGrossPay(f.id)
-        }));
+      .filter(f => selectedFrequencies.includes(f.id))
+      .map(f => {
+        const divisor = f.divisor;
+        const grossPay = results.grossAnnualIncome / divisor;
+        // Note: these are simplified averages and don't account for bonus timing
+        const tax = results.annualTax / divisor;
+        const nic = results.annualNic / divisor;
+        const pension = results.annualPension / divisor;
+        const studentLoan = results.annualStudentLoan / divisor;
+        const takeHome = results.annualTakeHome / divisor;
         
-  }, [selectedFrequencies, watchedValues.salary]);
+        return {
+            id: f.id,
+            label: f.label,
+            breakdown: [
+                { metric: 'Gross Pay', value: grossPay },
+                { metric: 'Income Tax', value: -tax },
+                { metric: 'National Insurance', value: -nic },
+                { metric: 'Pension Contribution', value: -pension },
+                { metric: 'Student Loan', value: -studentLoan },
+                { metric: 'Take-Home Pay', value: takeHome, isTotal: true },
+            ].filter(item => item.value !== 0 || item.metric === 'Gross Pay' || item.metric === 'Take-Home Pay')
+        };
+      });
+  }, [selectedFrequencies, results]);
 
 
  const renderFormattedText = (text: string) => {
@@ -1017,8 +1021,7 @@ ${actionResult.data.summary}
                             )}
                         />
                     </div>
-
-                    <div className="space-y-4 rounded-md border p-4">
+                     <div className="space-y-4 rounded-md border p-4">
                         <h3 className="font-semibold text-base flex items-center gap-2"><Coins className="h-5 w-5" />Salary Breakdown</h3>
                         <FormField
                             control={form.control}
@@ -1064,30 +1067,36 @@ ${actionResult.data.summary}
                                 <FormMessage />
                                 </FormItem>
                             )}
-                            />
-                        {salaryBreakdown.length > 0 && (
-                            <Card className="bg-muted/30">
-                                <CardContent className="p-4">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>Frequency</TableHead>
-                                                <TableHead className="text-right">Gross Pay</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {salaryBreakdown.map((item) => (
-                                                <TableRow key={item.frequency}>
-                                                    <TableCell className="font-medium">{item.frequency}</TableCell>
-                                                    <TableCell className="text-right">{formatCurrency(item.grossPay)}</TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                </CardContent>
-                            </Card>
+                        />
+                         {salaryBreakdown.length > 0 && (
+                            <Tabs defaultValue={salaryBreakdown[0].id} className="w-full">
+                                <TabsList>
+                                    {salaryBreakdown.map((item) => (
+                                        <TabsTrigger key={item.id} value={item.id}>{item.label}</TabsTrigger>
+                                    ))}
+                                </TabsList>
+                                {salaryBreakdown.map((item) => (
+                                    <TabsContent key={item.id} value={item.id}>
+                                        <Card className="bg-muted/30">
+                                            <CardContent className="p-4">
+                                                <Table>
+                                                    <TableBody>
+                                                        {item.breakdown.map((row) => (
+                                                            <TableRow key={row.metric} className={row.isTotal ? "font-bold" : ""}>
+                                                                <TableCell>{row.metric}</TableCell>
+                                                                <TableCell className="text-right">{formatCurrency(row.value)}</TableCell>
+                                                            </TableRow>
+                                                        ))}
+                                                    </TableBody>
+                                                </Table>
+                                            </CardContent>
+                                        </Card>
+                                    </TabsContent>
+                                ))}
+                            </Tabs>
                         )}
                     </div>
+
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {watchedValues.showBonus && (

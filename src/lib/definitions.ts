@@ -17,12 +17,12 @@ export const pensionSchemes = ["Salary Sacrifice", "Standard (Relief at Source)"
 export type PensionScheme = (typeof pensionSchemes)[number];
 
 export const payFrequencies = [
-    { id: 'yearly', label: 'Yearly' },
-    { id: 'monthly', label: 'Monthly' },
-    { id: '4-weekly', label: '4 Weekly' },
-    { id: '2-weekly', label: '2 Weekly' },
-    { id: 'weekly', label: 'Weekly' },
-    { id: 'daily', label: 'Daily' },
+    { id: 'yearly', label: 'Yearly', divisor: 1 },
+    { id: 'monthly', label: 'Monthly', divisor: 12 },
+    { id: '4-weekly', label: '4 Weekly', divisor: 13 },
+    { id: '2-weekly', label: '2 Weekly', divisor: 26 },
+    { id: 'weekly', label: 'Weekly', divisor: 52 },
+    { id: 'daily', label: 'Daily', divisor: 260 },
 ] as const;
 export type PayFrequency = (typeof payFrequencies)[number]['id'];
 
