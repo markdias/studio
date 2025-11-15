@@ -1149,7 +1149,6 @@ ${actionResult.data.summary}
                         )}
                     </div>
 
-
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {watchedValues.showBonus && (
                             <div className="space-y-4 rounded-md border p-4">
