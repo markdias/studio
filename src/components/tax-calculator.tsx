@@ -553,47 +553,62 @@ ${actionResult.data.summary}
     if (!selectedFrequencies || selectedFrequencies.length === 0 || !results) return [];
 
     const oneTimeBonus = bonusPayFrequency === 'one-time' ? bonus : 0;
+    const bonusPeriodData = results.monthlyBreakdown.find(m => m.month === bonusMonth);
+    const typicalPeriodData = results.monthlyBreakdown.find(m => m.month !== bonusMonth) || results.monthlyBreakdown[0]; // fallback for all-bonus scenario
 
     return payFrequencies
-      .filter(f => selectedFrequencies.includes(f.id))
-      .map(f => {
-        const divisor = f.divisor;
-        const typicalGross = (results.grossAnnualIncome - results.annualBonus) / divisor;
-        const typicalTax = (results.annualTax - (results.monthlyBreakdown.find(m => m.month === bonusMonth)?.tax ?? 0 - (results.annualTax / 12))) / divisor;
-        const typicalNic = (results.annualNic - (results.monthlyBreakdown.find(m => m.month === bonusMonth)?.nic ?? 0 - (results.annualNic / 12))) / divisor;
-        const typicalPension = (results.annualPension - (results.monthlyBreakdown.find(m => m.month === bonusMonth)?.pension ?? 0 - (results.annualPension / 12))) / divisor;
-        const typicalStudentLoan = (results.annualStudentLoan - (results.monthlyBreakdown.find(m => m.month === bonusMonth)?.studentLoan ?? 0 - (results.annualStudentLoan / 12))) / divisor;
-        const typicalTakeHome = typicalGross - typicalTax - typicalNic - typicalPension - typicalStudentLoan;
+        .filter(f => selectedFrequencies.includes(f.id))
+        .map(f => {
+            const divisor = f.divisor;
 
-        const bonusPeriodData = results.monthlyBreakdown.find(m => m.month === bonusMonth);
-        
-        let bonusPeriodBreakdown = null;
-        if (oneTimeBonus > 0 && bonusPeriodData) {
-            bonusPeriodBreakdown = [
-                { metric: 'Gross Pay', value: bonusPeriodData.gross },
-                { metric: 'Income Tax', value: -bonusPeriodData.tax },
-                { metric: 'National Insurance', value: -bonusPeriodData.nic },
-                { metric: 'Pension Contribution', value: -bonusPeriodData.pension },
-                { metric: 'Student Loan', value: -bonusPeriodData.studentLoan },
-                { metric: 'Take-Home Pay', value: bonusPeriodData.takeHome, isTotal: true },
-            ].filter(item => item.value !== 0 || item.metric === 'Gross Pay' || item.metric === 'Take-Home Pay');
-        }
+            // Typical Period Calculation (based on a non-bonus month)
+            const getTypicalValue = (annualValue: number, bonusMonthValue: number, annualBonusValue: number) => {
+                if (bonusPayFrequency !== 'one-time' || oneTimeBonus === 0) {
+                    return annualValue / divisor;
+                }
+                // (Total Annual - Bonus Month Value) / 11 months * (12 / divisor)
+                return ((annualValue - bonusMonthValue) / 11) * (12 / divisor);
+            };
+            
+            const typicalGross = typicalPeriodData.gross * (12/divisor);
+            const typicalTax = typicalPeriodData.tax * (12/divisor);
+            const typicalNic = typicalPeriodData.nic * (12/divisor);
+            const typicalPension = typicalPeriodData.pension * (12/divisor);
+            const typicalStudentLoan = typicalPeriodData.studentLoan * (12/divisor);
+            const typicalTakeHome = typicalGross - typicalTax - typicalNic - typicalPension - typicalStudentLoan;
+            
+            // Bonus Period Calculation
+            let bonusPeriodBreakdown = null;
+            if (oneTimeBonus > 0 && bonusPeriodData && f.id === 'monthly') { // Bonus breakdown only makes sense for monthly
+                const typicalMonthlyTakeHome = typicalPeriodData.takeHome;
+                const bonusNetImpact = bonusPeriodData.takeHome - typicalMonthlyTakeHome;
 
-        return {
-            id: f.id,
-            label: f.label,
-            typicalBreakdown: [
-                { metric: 'Gross Pay', value: typicalGross },
-                { metric: 'Income Tax', value: -typicalTax },
-                { metric: 'National Insurance', value: -typicalNic },
-                { metric: 'Pension Contribution', value: -typicalPension },
-                { metric: 'Student Loan', value: -typicalStudentLoan },
-                { metric: 'Take-Home Pay', value: typicalTakeHome, isTotal: true },
-            ].filter(item => item.value !== 0 || item.metric === 'Gross Pay' || item.metric === 'Take-Home Pay'),
-            bonusPeriodBreakdown: bonusPeriodBreakdown
-        };
-      });
-  }, [selectedFrequencies, results, bonus, bonusPayFrequency, bonusMonth]);
+                bonusPeriodBreakdown = [
+                    { metric: 'Gross Pay', value: bonusPeriodData.gross },
+                    { metric: 'Income Tax', value: -bonusPeriodData.tax },
+                    { metric: 'National Insurance', value: -bonusPeriodData.nic },
+                    { metric: 'Pension Contribution', value: -bonusPeriodData.pension },
+                    { metric: 'Student Loan', value: -bonusPeriodData.studentLoan },
+                    { metric: 'Take-Home Pay', value: bonusPeriodData.takeHome, isTotal: true },
+                    { metric: 'Bonus (after deductions)', value: bonusNetImpact, isSubTotal: true },
+                ].filter(item => item.value !== 0 || ['Gross Pay', 'Take-Home Pay', 'Bonus (after deductions)'].includes(item.metric) );
+            }
+
+            return {
+                id: f.id,
+                label: f.label,
+                typicalBreakdown: [
+                    { metric: 'Gross Pay', value: typicalGross },
+                    { metric: 'Income Tax', value: -typicalTax },
+                    { metric: 'National Insurance', value: -typicalNic },
+                    { metric: 'Pension Contribution', value: -typicalPension },
+                    { metric: 'Student Loan', value: -typicalStudentLoan },
+                    { metric: 'Take-Home Pay', value: typicalTakeHome, isTotal: true },
+                ].filter(item => item.value !== 0 || item.metric === 'Gross Pay' || item.metric === 'Take-Home Pay'),
+                bonusPeriodBreakdown: bonusPeriodBreakdown
+            };
+        });
+}, [selectedFrequencies, results, bonus, bonusPayFrequency, bonusMonth]);
 
 
  const renderFormattedText = (text: string) => {
@@ -1117,7 +1132,7 @@ ${actionResult.data.summary}
                                                         <Table>
                                                             <TableBody>
                                                                 {item.bonusPeriodBreakdown.map((row) => (
-                                                                    <TableRow key={row.metric} className={row.isTotal ? "font-bold" : ""}>
+                                                                    <TableRow key={row.metric} className={row.isTotal ? "font-bold" : row.isSubTotal ? "font-semibold text-blue-800 dark:text-blue-300" : ""}>
                                                                         <TableCell>{row.metric}</TableCell>
                                                                         <TableCell className="text-right">{formatCurrency(row.value)}</TableCell>
                                                                     </TableRow>
@@ -1911,3 +1926,5 @@ ${actionResult.data.summary}
     </FormProvider>
   );
 }
+
+    
