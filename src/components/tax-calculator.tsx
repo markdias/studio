@@ -147,39 +147,68 @@ export default function TaxCalculator() {
   });
 
   const watchedValues = form.watch();
+  
+    const {
+    taxYear, salary, region, taxCode, showBonus, bonus, bonusMonth,
+    showPension, pensionContribution, bonusPensionContribution, enablePensionComparison, adjustedPensionContribution,
+    showBenefits, taxableBenefits, blind, showPayRise, hasPayRise, newSalary, payRiseMonth,
+    showChildcareCalculator, numberOfChildren, daysPerWeekInChildcare, dailyChildcareRate, partnerIncome,
+    registeredChildcareProvider, childDisabled, claimingUniversalCredit, claimingTaxFreeChildcare,
+    showStudentLoan, studentLoanPlan1, studentLoanPlan2, studentLoanPlan4, studentLoanPlan5, postgraduateLoan
+  } = watchedValues;
 
-  const calculate = () => {
-    const values = form.getValues();
-    const parsed = taxCalculatorSchema.safeParse(values);
+  const mainCalculation = useMemo(() => {
+    const parsed = taxCalculatorSchema.safeParse(watchedValues);
     if (parsed.success) {
-      setResults(calculateTakeHomePay(parsed.data));
-      if (parsed.data.enablePensionComparison) {
-        setAdjustedResults(calculateTakeHomePay({
-          ...parsed.data,
-          pensionContribution: parsed.data.adjustedPensionContribution ?? 0,
-        }));
-      } else {
-        setAdjustedResults(null);
-      }
-    } else {
-      setResults(null);
-      setAdjustedResults(null);
-      console.log(parsed.error);
+      return calculateTakeHomePay(parsed.data);
     }
-  }
+    return null;
+  }, [
+    taxYear, salary, region, taxCode, showBonus, bonus, bonusMonth,
+    showPension, pensionContribution, bonusPensionContribution, enablePensionComparison, adjustedPensionContribution,
+    showBenefits, taxableBenefits, blind, showPayRise, hasPayRise, newSalary, payRiseMonth,
+    showChildcareCalculator, numberOfChildren, daysPerWeekInChildcare, dailyChildcareRate, partnerIncome,
+    registeredChildcareProvider, childDisabled, claimingUniversalCredit, claimingTaxFreeChildcare,
+    showStudentLoan, studentLoanPlan1, studentLoanPlan2, studentLoanPlan4, studentLoanPlan5, postgraduateLoan
+  ]);
+
+  const adjustedCalculation = useMemo(() => {
+    const parsed = taxCalculatorSchema.safeParse(watchedValues);
+    if (parsed.success && parsed.data.enablePensionComparison) {
+      return calculateTakeHomePay({
+        ...parsed.data,
+        pensionContribution: parsed.data.adjustedPensionContribution ?? 0,
+      });
+    }
+    return null;
+  }, [
+    taxYear, salary, region, taxCode, showBonus, bonus, bonusMonth,
+    showPension, pensionContribution, bonusPensionContribution, enablePensionComparison, adjustedPensionContribution,
+    showBenefits, taxableBenefits, blind, showPayRise, hasPayRise, newSalary, payRiseMonth,
+    showChildcareCalculator, numberOfChildren, daysPerWeekInChildcare, dailyChildcareRate, partnerIncome,
+    registeredChildcareProvider, childDisabled, claimingUniversalCredit, claimingTaxFreeChildcare,
+    showStudentLoan, studentLoanPlan1, studentLoanPlan2, studentLoanPlan4, studentLoanPlan5, postgraduateLoan
+  ]);
 
   useEffect(() => {
-    const subscription = form.watch((value, { name }) => {
-        if(name === 'taxYear' && value.taxYear && !isTaxCodeManuallySet){
-            const newTaxCode = defaultTaxCodes[value.taxYear] || "1257L";
+    setResults(mainCalculation);
+  }, [mainCalculation]);
+
+  useEffect(() => {
+    setAdjustedResults(adjustedCalculation);
+  }, [adjustedCalculation]);
+
+
+  useEffect(() => {
+    if(taxYear && !isTaxCodeManuallySet){
+        const newTaxCode = defaultTaxCodes[taxYear] || "1257L";
+        if(form.getValues('taxCode') !== newTaxCode) {
             form.setValue('taxCode', newTaxCode, { shouldValidate: true });
         }
-      calculate();
-    });
-    calculate();
-    return () => subscription.unsubscribe();
-  }, [form, isTaxCodeManuallySet]);
-  
+    }
+  }, [taxYear, isTaxCodeManuallySet, form]);
+
+
   useEffect(() => {
     if (taxChatHistory.length > 0) {
       setTaxChatHistory([]);
@@ -281,7 +310,6 @@ export default function TaxCalculator() {
         if (parsedData.success) {
           form.reset(parsedData.data);
           setIsTaxCodeManuallySet(true); // Assume imported tax code is intentional
-          calculate();
           toast({
             title: "Data Imported",
             description: "Your financial details have been loaded from the file.",
@@ -642,6 +670,7 @@ ${actionResult.data.summary}
   };
 
   const renderMonthlyBreakdownPanel = (res: CalculationResults | null, title: string) => {
+    const showLoanColumn = res && res.annualStudentLoan > 0;
     return (
       <Card>
         <CardHeader>
@@ -656,7 +685,7 @@ ${actionResult.data.summary}
                   <TableHead className="font-semibold">Month</TableHead>
                   <TableHead className="text-right font-semibold">Gross Pay</TableHead>
                   <TableHead className="text-right font-semibold">Pension</TableHead>
-                  <TableHead className="text-right font-semibold">Loan</TableHead>
+                  {showLoanColumn && <TableHead className="text-right font-semibold">Loan</TableHead>}
                   <TableHead className="text-right font-semibold">Income Tax</TableHead>
                   <TableHead className="text-right font-semibold">Nat. Ins.</TableHead>
                   <TableHead className="text-right font-semibold text-primary">Take-Home</TableHead>
@@ -668,7 +697,7 @@ ${actionResult.data.summary}
                     <TableCell>{row.month}</TableCell>
                     <TableCell className="text-right">{formatCurrency(row.gross)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(row.pension)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(row.studentLoan)}</TableCell>
+                    {showLoanColumn && <TableCell className="text-right">{formatCurrency(row.studentLoan)}</TableCell>}
                     <TableCell className="text-right">{formatCurrency(row.tax)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(row.nic)}</TableCell>
                     <TableCell className="text-right text-primary font-bold">{formatCurrency(row.takeHome)}</TableCell>
@@ -925,7 +954,6 @@ ${actionResult.data.summary}
                                             onClick={() => {
                                             setIsTaxCodeEditing(false);
                                             setIsTaxCodeManuallySet(true);
-                                            calculate();
                                             }}
                                             title="Save Tax Code"
                                         >
@@ -1636,5 +1664,3 @@ ${actionResult.data.summary}
     </FormProvider>
   );
 }
-
-    
