@@ -1,0 +1,21 @@
+{
+  "name": "tax-calculator-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Monorepo for UK Tax Calculator (Web + Mobile)",
+  "workspaces": [
+    "apps/web",
+    "apps/mobile",
+    "packages/shared-tax-logic"
+  ],
+  "scripts": {
+    "dev:web": "yarn workspace @tax-calc/web dev",
+    "dev:mobile": "yarn workspace @tax-calc/mobile start",
+    "dev": "yarn dev:web",
+    "build:web": "yarn workspace @tax-calc/web build",
+    "build:mobile": "yarn workspace @tax-calc/mobile build",
+    "build": "yarn build:web && yarn build:mobile",
+    "lint": "yarn workspace @tax-calc/web lint",
+    "typecheck": "yarn workspace @tax-calc/web typecheck && yarn workspace @tax-calc/shared typecheck"
+  }
+}
